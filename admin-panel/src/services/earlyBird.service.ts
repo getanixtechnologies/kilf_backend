@@ -20,6 +20,10 @@ export const INTEREST_LABELS: Record<string, string> = {
   OPEN_MIC_POETRY: 'Open mic & poetry',
   NEW_YEARS_EVE: "New Year's Eve",
   WORKSHOPS: 'Workshops',
+  YOUTH: 'Youth',
+  THEATRE: 'Theatre',
+  MUSIC: 'Music',
+  FILM: 'Film',
 };
 
 export interface EarlyBirdRegistration {
@@ -60,4 +64,8 @@ export async function exportEarlyBirdCsv(params: Omit<EarlyBirdListParams, 'page
   link.click();
   link.remove();
   URL.revokeObjectURL(blobUrl);
+}
+
+export async function deleteEarlyBird(id: string): Promise<void> {
+  await api.delete(`/api/admin/early-bird/${id}`);
 }

@@ -4,6 +4,7 @@ import { asyncHandler } from '../utils/asyncHandler';
 import { sendSuccess } from '../utils/apiResponse';
 import { getPaginationParams } from '../utils/pagination';
 import * as earlyBirdService from '../services/earlyBird.service';
+import { recordAuditLogFromRequest } from '../services/auditLog.service';
 
 export const register = asyncHandler(async (req: Request, res: Response) => {
   const result = await earlyBirdService.register(req.body);
@@ -23,4 +24,10 @@ export const exportCsv = asyncHandler(async (req: Request, res: Response) => {
   res.setHeader('Content-Type', 'text/csv; charset=utf-8');
   res.setHeader('Content-Disposition', 'attachment; filename="early-bird-registrations.csv"');
   return res.status(200).send(csv);
+});
+
+export const remove = asyncHandler(async (req: Request, res: Response) => {
+  const before = await earlyBirdService.remove(req.params.id);
+  await recordAuditLogFromRequest(req, 'DELETED_EARLY_BIRD', 'EarlyBirdRegistration', req.params.id, before, null);
+  return sendSuccess(res, null, 'Registration deleted');
 });

@@ -62,3 +62,7 @@ export const listEarlyBirdSchema = z.object({
 export const exportEarlyBirdSchema = z.object({
   query: z.object(filters),
 });
+
+export const earlyBirdIdParamSchema = z.object({
+  params: z.object({ id: z.string().uuid() }),
+});

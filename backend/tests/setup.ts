@@ -11,6 +11,7 @@ async function truncateAll() {
     'tickets',
     'sponsors',
     'early_bird_registrations',
+    'enquiries',
     'festivals',
     'admins',
     'guests',

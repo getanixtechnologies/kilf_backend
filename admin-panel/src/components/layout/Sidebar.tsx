@@ -7,6 +7,7 @@ import {
   ScanLine,
   Handshake,
   Sparkles,
+  MessageSquare,
   LineChart,
   Settings,
   LogOut,
@@ -46,6 +47,7 @@ const NAV_GROUPS: NavGroup[] = [
   },
   { items: [{ label: 'Sponsors', to: '/sponsors', icon: Handshake }] },
   { items: [{ label: 'Early Bird', to: '/early-bird', icon: Sparkles }] },
+  { items: [{ label: 'Enquiries', to: '/enquiries', icon: MessageSquare }] },
   { items: [{ label: 'Revenue', to: '/revenue', icon: LineChart }] },
   { items: [{ label: 'Settings', to: '/admin/settings', icon: Settings }] },
 ];

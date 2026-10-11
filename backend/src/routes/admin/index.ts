@@ -9,6 +9,7 @@ import sponsorRoutes from './sponsor.routes';
 import revenueRoutes from './revenue.routes';
 import auditLogRoutes from './auditLog.routes';
 import earlyBirdRoutes from './earlyBird.routes';
+import enquiryRoutes from './enquiry.routes';
 
 const router = Router();
 
@@ -23,5 +24,6 @@ router.use('/sponsors', sponsorRoutes);
 router.use('/revenue', revenueRoutes);
 router.use('/audit-logs', auditLogRoutes);
 router.use('/early-bird', earlyBirdRoutes);
+router.use('/enquiries', enquiryRoutes);
 
 export default router;

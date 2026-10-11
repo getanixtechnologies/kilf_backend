@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { Download, Sparkles } from 'lucide-react';
+import { Download, Sparkles, Trash2 } from 'lucide-react';
 import { PageHeader } from '@/components/common/PageHeader';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,7 +11,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { EmptyState } from '@/components/common/EmptyState';
 import { ErrorState } from '@/components/common/ErrorState';
+import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import { PaginationBar } from '@/components/common/PaginationBar';
+import { useAuth } from '@/hooks/useAuth';
 import { getApiErrorMessage } from '@/services/api';
 import { formatDate } from '@/lib/utils';
 import {
@@ -19,11 +21,14 @@ import {
   EARLY_BIRD_TYPES,
   EarlyBirdType,
   INTEREST_LABELS,
+  deleteEarlyBird,
   exportEarlyBirdCsv,
   listEarlyBird,
 } from '@/services/earlyBird.service';
 
 export default function EarlyBirdListPage() {
+  const { admin } = useAuth();
+  const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [type, setType] = useState<EarlyBirdType | 'ALL'>('ALL');
@@ -53,6 +58,18 @@ export default function EarlyBirdListPage() {
       setExporting(false);
     }
   }
+
+  async function handleDelete(id: string) {
+    try {
+      await deleteEarlyBird(id);
+      toast.success('Registration deleted');
+      queryClient.invalidateQueries({ queryKey: ['early-bird'] });
+    } catch (err) {
+      toast.error(getApiErrorMessage(err, 'Failed to delete registration'));
+    }
+  }
+
+  const canDelete = admin?.role === 'SUPER_ADMIN';
 
   function onFilter<T>(setter: (v: T) => void) {
     return (v: T) => {
@@ -147,6 +164,7 @@ export default function EarlyBirdListPage() {
                 <TableHead>Age</TableHead>
                 <TableHead>Interests</TableHead>
                 <TableHead>Registered</TableHead>
+                {canDelete && <TableHead className="w-10" />}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -177,6 +195,22 @@ export default function EarlyBirdListPage() {
                   <TableCell className="whitespace-nowrap text-muted-foreground">
                     {formatDate(r.createdAt, true)}
                   </TableCell>
+                  {canDelete && (
+                    <TableCell>
+                      <ConfirmDialog
+                        trigger={
+                          <Button variant="ghost" size="icon" aria-label="Delete registration">
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        }
+                        title="Delete registration?"
+                        description={`This permanently removes the registration from ${r.name}.`}
+                        confirmLabel="Delete"
+                        variant="destructive"
+                        onConfirm={() => handleDelete(r.id)}
+                      />
+                    </TableCell>
+                  )}
                 </TableRow>
               ))}
             </TableBody>

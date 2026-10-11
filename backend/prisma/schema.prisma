@@ -339,3 +339,26 @@ model EarlyBirdRegistration {
   @@index([interestType])
   @@map("early_bird_registrations")
 }
+
+enum EnquiryStatus {
+  PENDING
+  IN_PROGRESS
+  RESOLVED
+}
+
+model Enquiry {
+  id           String        @id @default(uuid())
+  name         String
+  email        String
+  phone        String
+  organisation String
+  topic        String?
+  notes        String?
+  status       EnquiryStatus @default(PENDING)
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
+
+  @@index([status])
+  @@index([createdAt])
+  @@map("enquiries")
+}

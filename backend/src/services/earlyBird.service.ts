@@ -79,3 +79,10 @@ export async function exportCsv(filters: EarlyBirdFilters) {
     ['interestType', 'name', 'whatsappNumber', 'email', 'townOrCity', 'ageGroup', 'interests', 'createdAt']
   );
 }
+
+export async function remove(id: string) {
+  const before = await prisma.earlyBirdRegistration.findUnique({ where: { id } });
+  if (!before) throw ApiError.notFound('Registration not found');
+  await prisma.earlyBirdRegistration.delete({ where: { id } });
+  return before;
+}

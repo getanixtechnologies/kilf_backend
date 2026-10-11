@@ -32,3 +32,11 @@ export const earlyBirdLimiter = rateLimit({
   legacyHeaders: false,
   message: { success: false, message: 'Too many registration attempts, please try again later.', errors: [] },
 });
+
+export const enquiryLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: isTest ? 100000 : 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, message: 'Too many enquiries submitted, please try again later.', errors: [] },
+});
