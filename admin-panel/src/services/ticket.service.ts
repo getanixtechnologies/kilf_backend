@@ -21,7 +21,7 @@ export async function getTicket(id: string): Promise<Ticket> {
 }
 
 export interface TicketInput {
-  festivalId: string;
+  festivalId?: string;
   name: string;
   description?: string;
   ticketType: TicketType;

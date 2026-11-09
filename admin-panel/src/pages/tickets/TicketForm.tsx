@@ -16,7 +16,7 @@ import { listFestivals } from '@/services/festival.service';
 
 const ticketSchema = z
   .object({
-    festivalId: z.string().uuid('Select a festival'),
+    festivalId: z.union([z.string().uuid('Select a festival'), z.literal('')]).optional(),
     name: z.string().min(2, 'Name is required'),
     description: z.string().optional(),
     ticketType: z.enum(['GENERAL', 'VIP', 'STUDENT', 'EARLY_BIRD', 'DAY_PASS', 'FULL_FESTIVAL']),
@@ -86,14 +86,14 @@ export function TicketForm({ defaultValues, fixedFestivalId, onSubmit, submitLab
     <Card>
       <form onSubmit={handleSubmit(handleFormSubmit)}>
         <FormSection title="Ticket details" description="What customers see when they choose a ticket.">
-          <Field label="Festival" required wide error={errors.festivalId?.message}>
+          <Field label="Festival" wide error={errors.festivalId?.message}>
             <Controller
               control={control}
               name="festivalId"
               render={({ field }) => (
                 <Select value={field.value} onValueChange={field.onChange} disabled={!!fixedFestivalId}>
                   <SelectTrigger aria-label="Festival">
-                    <SelectValue placeholder="Select a festival" />
+                    <SelectValue placeholder="Latest festival (default)" />
                   </SelectTrigger>
                   <SelectContent>
                     {festivalsData?.data.map((f) => (

@@ -12,6 +12,7 @@ export default function TicketCreatePage() {
   async function handleSubmit(values: TicketFormValues) {
     await createTicket({
       ...values,
+      festivalId: values.festivalId || undefined,
       salesStart: new Date(values.salesStart).toISOString(),
       salesEnd: new Date(values.salesEnd).toISOString(),
     });

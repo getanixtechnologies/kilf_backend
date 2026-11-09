@@ -2,6 +2,7 @@ import { TicketSaleStatus, TicketType } from '@prisma/client';
 import * as ticketRepository from '../repositories/ticket.repository';
 import { getFestival } from './festival.service';
 import { ApiError } from '../utils/ApiError';
+import { prisma } from '../config/prisma';
 import { buildPagination } from '../utils/apiResponse';
 
 export interface PassRules {
@@ -76,8 +77,19 @@ export async function getTicketWithInventory(id: string) {
   };
 }
 
+/** Uses the given festival, or falls back to the latest one (most recent start date). */
+async function resolveFestivalId(festivalId?: string) {
+  if (festivalId) {
+    await getFestival(festivalId); // ensures festival exists
+    return festivalId;
+  }
+  const latest = await prisma.festival.findFirst({ orderBy: { startDate: 'desc' }, select: { id: true } });
+  if (!latest) throw ApiError.badRequest('Create a festival before adding tickets');
+  return latest.id;
+}
+
 export async function createTicket(data: {
-  festivalId: string;
+  festivalId?: string;
   name: string;
   description?: string;
   ticketType: TicketType;
@@ -87,13 +99,13 @@ export async function createTicket(data: {
   salesEnd: Date;
   status?: TicketSaleStatus;
 } & Partial<PassRules>) {
-  await getFestival(data.festivalId); // ensures festival exists
+  const festivalId = await resolveFestivalId(data.festivalId);
   assertPriceMatchesType(data.ticketType, data.price);
   assertAgeRange(data.minAge, data.maxAge);
   const preset = TYPE_PRESETS[data.ticketType] ?? {};
 
   return ticketRepository.create({
-    festivalId: data.festivalId,
+    festivalId,
     name: data.name,
     description: data.description,
     ticketType: data.ticketType,

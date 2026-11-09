@@ -27,7 +27,7 @@ const passRuleFields = {
 export const createTicketSchema = z.object({
   body: z
     .object({
-      festivalId: z.string().uuid(),
+      festivalId: z.string().uuid().optional(),
       name: z.string().min(2).max(200),
       description: z.string().max(2000).optional(),
       ticketType: TicketTypeEnum.default('GENERAL'),

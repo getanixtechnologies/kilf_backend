@@ -27,6 +27,44 @@ describe('Ticket management', () => {
     expect(res.body.data.totalQuantity).toBe(100);
   });
 
+  it('creates a ticket without a festival, using the latest festival', async () => {
+    const { token } = await createAdmin();
+    await createFestival({ startDate: new Date('2025-01-01'), endDate: new Date('2025-01-05') });
+    const latest = await createFestival({ startDate: new Date('2030-01-01'), endDate: new Date('2030-01-05') });
+
+    const res = await request(app)
+      .post('/api/admin/tickets')
+      .set(authHeader(token))
+      .send({
+        name: 'No Festival Pass',
+        ticketType: 'GENERAL',
+        price: 500,
+        totalQuantity: 10,
+        salesStart: new Date(Date.now() - 1000).toISOString(),
+        salesEnd: new Date(Date.now() + 100000000).toISOString(),
+      });
+
+    expect(res.status).toBe(201);
+    expect(res.body.data.festivalId).toBe(latest.id);
+  });
+
+  it('rejects creating a ticket without a festival when none exist', async () => {
+    const { token } = await createAdmin();
+
+    const res = await request(app)
+      .post('/api/admin/tickets')
+      .set(authHeader(token))
+      .send({
+        name: 'Orphan Pass',
+        price: 500,
+        totalQuantity: 10,
+        salesStart: new Date().toISOString(),
+        salesEnd: new Date(Date.now() + 100000).toISOString(),
+      });
+
+    expect(res.status).toBe(400);
+  });
+
   it('rejects creating a ticket with a non-positive quantity', async () => {
     const { token } = await createAdmin();
     const festival = await createFestival();
