@@ -29,7 +29,17 @@ export interface Festival {
   _count?: { tickets: number; bookings: number; sponsors: number };
 }
 
-export type TicketType = 'GENERAL' | 'VIP' | 'STUDENT' | 'EARLY_BIRD' | 'DAY_PASS' | 'FULL_FESTIVAL';
+export type TicketType =
+  | 'GENERAL'
+  | 'VIP'
+  | 'STUDENT'
+  | 'EARLY_BIRD'
+  | 'DAY_PASS'
+  | 'FULL_FESTIVAL'
+  | 'YOUNG_READER'
+  | 'ELITE'
+  | 'KHASAK_SHOW'
+  | 'NEW_YEAR_EVE';
 export type TicketSaleStatus = 'ACTIVE' | 'INACTIVE';
 
 export interface Ticket {
@@ -45,6 +55,13 @@ export interface Ticket {
   salesStart: string;
   salesEnd: string;
   status: TicketSaleStatus;
+  gstRate?: string | number;
+  requiresDate?: boolean;
+  requiresShowSession?: boolean;
+  minAge?: number | null;
+  maxAge?: number | null;
+  multiDay?: boolean;
+  perks?: string[];
   createdAt: string;
   updatedAt: string;
   ticketsSold?: number;

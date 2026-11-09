@@ -16,8 +16,8 @@ import { archiveTicket, deleteTicket, listTickets, updateTicketStatus } from '@/
 import { formatCurrency, formatLabel, formatNumber } from '@/lib/utils';
 import { TicketSaleStatus, TicketType } from '@/types';
 import { getApiErrorMessage } from '@/services/api';
+import { TICKET_TYPE_OPTIONS } from '@/lib/ticketTypes';
 
-const TICKET_TYPES: TicketType[] = ['GENERAL', 'VIP', 'STUDENT', 'EARLY_BIRD', 'DAY_PASS', 'FULL_FESTIVAL'];
 const FILTER_KEYS = ['search', 'type'] as const;
 
 export default function TicketsListPage() {
@@ -87,7 +87,7 @@ export default function TicketsListPage() {
               value={ticketType}
               onChange={(v) => setFilter('type', v)}
               allLabel="All types"
-              options={TICKET_TYPES.map((t) => ({ value: t, label: formatLabel(t) }))}
+              options={TICKET_TYPE_OPTIONS}
             />
           </>
         }

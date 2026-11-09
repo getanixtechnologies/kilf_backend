@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { PageHeader } from '@/components/common/PageHeader';
 import { TicketForm, TicketFormValues } from './TicketForm';
+import { toTicketPayload } from './ticketPayload';
 import { getTicket, updateTicket } from '@/services/ticket.service';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ErrorState } from '@/components/common/ErrorState';
@@ -19,12 +20,9 @@ export default function TicketEditPage() {
   });
 
   const mutation = useMutation({
+    // The festival can't be changed after creation, so it isn't sent.
     mutationFn: (values: TicketFormValues) =>
-      updateTicket(id!, {
-        ...values,
-        salesStart: new Date(values.salesStart).toISOString(),
-        salesEnd: new Date(values.salesEnd).toISOString(),
-      }),
+      updateTicket(id!, { ...toTicketPayload(values), festivalId: undefined }),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['tickets'] });
       await queryClient.invalidateQueries({ queryKey: ['ticket', id] });

@@ -3,6 +3,7 @@ import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
 import { PageHeader } from '@/components/common/PageHeader';
 import { TicketForm, TicketFormValues } from './TicketForm';
+import { toTicketPayload } from './ticketPayload';
 import { createTicket } from '@/services/ticket.service';
 
 export default function TicketCreatePage() {
@@ -10,12 +11,7 @@ export default function TicketCreatePage() {
   const queryClient = useQueryClient();
 
   async function handleSubmit(values: TicketFormValues) {
-    await createTicket({
-      ...values,
-      festivalId: values.festivalId || undefined,
-      salesStart: new Date(values.salesStart).toISOString(),
-      salesEnd: new Date(values.salesEnd).toISOString(),
-    });
+    await createTicket(toTicketPayload(values));
     await queryClient.invalidateQueries({ queryKey: ['tickets'] });
     toast.success('Ticket created');
     navigate('/tickets');

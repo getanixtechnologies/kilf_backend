@@ -30,6 +30,13 @@ export interface TicketInput {
   salesStart: string;
   salesEnd: string;
   status?: TicketSaleStatus;
+  gstRate?: number;
+  requiresDate?: boolean;
+  requiresShowSession?: boolean;
+  minAge?: number | null;
+  maxAge?: number | null;
+  multiDay?: boolean;
+  perks?: string[];
 }
 
 export async function createTicket(input: TicketInput): Promise<Ticket> {
