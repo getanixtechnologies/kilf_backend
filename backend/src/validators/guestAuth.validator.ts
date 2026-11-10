@@ -67,6 +67,34 @@ export const guestResetPasswordSchema = z.object({
     }),
 });
 
+export const guestUpdateProfileSchema = z.object({
+  body: z.object({
+    name: z
+      .string()
+      .trim()
+      .min(2, 'Name must be at least 2 characters long')
+      .max(100, 'Name must be at most 100 characters long'),
+    phone: z
+      .string()
+      .trim()
+      .regex(/^[0-9+ ]{10,15}$/, 'Phone must be 10-15 characters: digits, + or spaces')
+      .nullable()
+      .optional(),
+  }),
+});
+
+export const guestBookingListSchema = z.object({
+  query: z.object({
+    page: z.coerce.number().int().min(1).optional(),
+    limit: z.coerce.number().int().min(1).max(100).optional(),
+  }),
+});
+
+export const guestBookingParamsSchema = z.object({
+  params: z.object({ bookingNumber: z.string().trim().min(1).max(50) }),
+});
+
+export type GuestUpdateProfileInput = z.infer<typeof guestUpdateProfileSchema>['body'];
 export type GuestRegisterInput = z.infer<typeof guestRegisterSchema>['body'];
 export type GuestLoginInput = z.infer<typeof guestLoginSchema>['body'];
 export type GuestChangePasswordInput = z.infer<typeof guestChangePasswordSchema>['body'];

@@ -10,6 +10,9 @@ import {
   guestRefreshSchema,
   guestRegisterSchema,
   guestResetPasswordSchema,
+  guestUpdateProfileSchema,
+  guestBookingListSchema,
+  guestBookingParamsSchema,
 } from '../../validators/guestAuth.validator';
 
 const router = Router();
@@ -89,12 +92,85 @@ router.post('/logout', authenticateGuest, guestAuthController.logout);
  * /api/auth/me:
  *   get:
  *     tags: [Guest Auth]
- *     summary: Get the current guest's profile
+ *     summary: Get the current guest's profile (id, name, email, phone, ...)
  *     security: [{ bearerAuth: [] }]
  *     responses:
  *       200: { description: Profile fetched }
+ *       401: { description: Missing, invalid or expired token }
+ *   patch:
+ *     tags: [Guest Auth]
+ *     summary: Update the current guest's name and phone (email is not editable)
+ *     security: [{ bearerAuth: [] }]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [name]
+ *             properties:
+ *               name: { type: string, minLength: 2, maxLength: 100 }
+ *               phone: { type: string, pattern: '^[0-9+ ]{10,15}$', nullable: true }
+ *     responses:
+ *       200: { description: Profile updated; data is the updated guest }
+ *       400: { description: Validation failed }
+ *       401: { description: Missing, invalid or expired token }
  */
 router.get('/me', authenticateGuest, guestAuthController.me);
+router.patch('/me', authenticateGuest, validate(guestUpdateProfileSchema), guestAuthController.updateMe);
+
+/**
+ * @openapi
+ * /api/auth/bookings:
+ *   get:
+ *     tags: [Guest Auth]
+ *     summary: List the current guest's bookings, newest first
+ *     security: [{ bearerAuth: [] }]
+ *     parameters:
+ *       - { in: query, name: page, schema: { type: integer, minimum: 1, default: 1 } }
+ *       - { in: query, name: limit, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+ *     responses:
+ *       200:
+ *         description: Bookings fetched
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean }
+ *                 data: { type: array, items: { $ref: '#/components/schemas/GuestBooking' } }
+ *       401: { description: Missing, invalid or expired token }
+ */
+router.get('/bookings', authenticateGuest, validate(guestBookingListSchema), guestAuthController.myBookings);
+
+/**
+ * @openapi
+ * /api/auth/bookings/{bookingNumber}:
+ *   get:
+ *     tags: [Guest Auth]
+ *     summary: Get one of the current guest's bookings with all its ticket instances
+ *     security: [{ bearerAuth: [] }]
+ *     parameters:
+ *       - { in: path, name: bookingNumber, required: true, schema: { type: string } }
+ *     responses:
+ *       200:
+ *         description: Booking fetched
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean }
+ *                 data: { $ref: '#/components/schemas/GuestBooking' }
+ *       401: { description: Missing, invalid or expired token }
+ *       404: { description: Booking not found (also when it belongs to another guest) }
+ */
+router.get(
+  '/bookings/:bookingNumber',
+  authenticateGuest,
+  validate(guestBookingParamsSchema),
+  guestAuthController.myBooking
+);
 
 /**
  * @openapi

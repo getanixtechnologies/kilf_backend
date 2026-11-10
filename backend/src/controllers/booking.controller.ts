@@ -9,7 +9,10 @@ import { recordAuditLogFromRequest } from '../services/auditLog.service';
 // ---- Public ----
 
 export const create = asyncHandler(async (req: Request, res: Response) => {
-  const { booking, payment } = await bookingService.createBooking(req.body);
+  const { booking, payment } = await bookingService.createBooking(
+    req.body,
+    req.guest?.id ?? null
+  );
   return sendSuccess(
     res,
     {

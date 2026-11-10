@@ -131,8 +131,11 @@ model Guest {
   passwordResetToken   String?   @map("password_reset_token")
   passwordResetExpires DateTime? @map("password_reset_expires")
   refreshTokenHash     String?   @map("refresh_token_hash")
+  phone                String?
   createdAt            DateTime  @default(now()) @map("created_at")
   updatedAt            DateTime  @updatedAt @map("updated_at")
+
+  bookings Booking[]
 
   @@map("guests")
 }
@@ -251,6 +254,8 @@ model Booking {
   bookingNumber  String        @unique @map("booking_number")
   festivalId     String        @map("festival_id")
   customerId     String        @map("customer_id")
+  /// Guest account that made the booking (set from the guest JWT only).
+  guestId        String?       @map("guest_id")
   status         BookingStatus @default(PENDING_PAYMENT)
   quantity       Int
   /// Sum of item subtotals, before GST.
@@ -267,12 +272,14 @@ model Booking {
 
   festival        Festival         @relation(fields: [festivalId], references: [id])
   customer        Customer         @relation(fields: [customerId], references: [id])
+  guest           Guest?           @relation(fields: [guestId], references: [id], onDelete: SetNull)
   bookingItems    BookingItem[]
   payments        Payment[]
   ticketInstances TicketInstance[]
 
   @@index([festivalId])
   @@index([customerId])
+  @@index([guestId])
   @@index([status])
   @@index([createdAt])
   @@map("bookings")

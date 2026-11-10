@@ -151,7 +151,7 @@ async function reserveShowSeats(
  * go negative. The subsequent conditional `updateMany` (WHERE availableQuantity
  * >= quantity) is a defense-in-depth atomic guard against overselling.
  */
-async function reserveInventoryAndCreateBooking(rawInput: CreateBookingInput) {
+async function reserveInventoryAndCreateBooking(rawInput: CreateBookingInput, guestId: string | null) {
   // No attendee list: every ticket is issued in the customer's name.
   const input = {
     ...rawInput,
@@ -230,6 +230,7 @@ async function reserveInventoryAndCreateBooking(rawInput: CreateBookingInput) {
             bookingNumber,
             festivalId: ticket.festivalId,
             customerId: customer.id,
+            guestId,
             status: isFree ? 'CONFIRMED' : 'PENDING_PAYMENT',
             quantity,
             subtotalAmount: subtotal,
@@ -355,8 +356,9 @@ const PROVIDER_NAME_TO_ENUM: Record<string, Prisma.PaymentUncheckedCreateInput['
   stripe: 'STRIPE',
 };
 
-export async function createBooking(input: CreateBookingInput) {
-  const booking = await reserveInventoryAndCreateBooking(input);
+/** `guestId` must come from a verified guest JWT, never from the request body. */
+export async function createBooking(input: CreateBookingInput, guestId: string | null = null) {
+  const booking = await reserveInventoryAndCreateBooking(input, guestId);
 
   if (booking.status === 'CONFIRMED') {
     // Free registration: already confirmed with tickets issued, no payment to create.

@@ -2,6 +2,7 @@ import { Router } from 'express';
 import * as bookingController from '../../controllers/booking.controller';
 import { validate } from '../../middleware/validate';
 import { bookingLimiter } from '../../middleware/rateLimiters';
+import { optionalGuest } from '../../middleware/guestAuth';
 import {
   confirmPaymentSchema,
   createBookingSchema,
@@ -17,6 +18,8 @@ const router = Router();
  *   post:
  *     tags: [Public Bookings]
  *     summary: Create a ticket booking
+ *     description: Guest token optional. With a valid guest Bearer token the booking is linked to that guest account (never from the body). A sent but invalid/expired token returns 401.
+ *     security: [{}, { bearerAuth: [] }]
  *     requestBody:
  *       required: true
  *       content:
@@ -36,9 +39,10 @@ const router = Router();
  *                   phone: { type: string }
  *     responses:
  *       201: { description: Booking created }
+ *       401: { description: Guest token sent but invalid or expired }
  *       409: { description: Not enough tickets available }
  */
-router.post('/', bookingLimiter, validate(createBookingSchema), bookingController.create);
+router.post('/', bookingLimiter, optionalGuest, validate(createBookingSchema), bookingController.create);
 
 /**
  * @openapi
