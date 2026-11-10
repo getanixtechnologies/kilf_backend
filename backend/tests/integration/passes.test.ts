@@ -43,12 +43,15 @@ describe('GST', () => {
 });
 
 describe('Attendee details', () => {
-  it('requires one attendee per ticket and rejects a mismatched quantity', async () => {
+  it('defaults attendees to the customer and rejects a mismatched quantity', async () => {
     const festival = await createFestival();
     const ticket = await createTicket(festival.id);
 
     const none = await book({ ticketId: ticket.id, quantity: 2 });
-    expect(none.status).toBe(400);
+    expect(none.status).toBe(201);
+
+    const neither = await book({ ticketId: ticket.id });
+    expect(neither.status).toBe(400);
 
     const mismatch = await book({ ticketId: ticket.id, quantity: 3, attendees: attendees(2) });
     expect(mismatch.status).toBe(400);
