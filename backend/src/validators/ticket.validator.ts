@@ -15,7 +15,18 @@ const TicketTypeEnum = z.enum([
 ]);
 const TicketSaleStatusEnum = z.enum(['ACTIVE', 'INACTIVE']);
 
+/** Ticket ID prefix: letters only, stored upper-case; "" or null clears it. */
+const idPrefix = z
+  .string()
+  .trim()
+  .transform((v) => v.toUpperCase())
+  .refine((v) => v === '' || /^[A-Z]{2,10}$/.test(v), 'idPrefix must be 2-10 letters (A-Z)')
+  .transform((v) => v || null)
+  .nullable()
+  .optional();
+
 const passRuleFields = {
+  idPrefix,
   gstRate: z.coerce.number().min(0).max(100).optional(),
   requiresDate: z.boolean().optional(),
   requiresShowSession: z.boolean().optional(),

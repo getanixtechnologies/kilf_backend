@@ -4,6 +4,7 @@ import { getFestival } from './festival.service';
 import { ApiError } from '../utils/ApiError';
 import { prisma } from '../config/prisma';
 import { buildPagination } from '../utils/apiResponse';
+import { reservedIdPrefixes } from '../utils/idGenerators';
 
 export interface PassRules {
   gstRate: number;
@@ -16,6 +17,8 @@ export interface PassRules {
   /** Event days admitted; null = 1, or every festival day for multiDay. */
   validityDays: number | null;
   allowReentry: boolean;
+  /** Letters in front of this ticket's ticket/booking numbers; null = default format. */
+  idPrefix: string | null;
 }
 
 /** Rules each pass type implies; anything the admin sends explicitly overrides these. */
@@ -81,6 +84,18 @@ export async function getTicketWithInventory(id: string) {
   };
 }
 
+/** A prefix must not be a default format's or already used by another ticket. */
+async function assertIdPrefixAvailable(idPrefix: string | null | undefined, ticketId?: string) {
+  if (!idPrefix) return;
+  if (reservedIdPrefixes().includes(idPrefix)) {
+    throw ApiError.badRequest(`Ticket ID prefix ${idPrefix} is reserved for the default format`);
+  }
+  const other = await prisma.ticket.findUnique({ where: { idPrefix }, select: { id: true, name: true } });
+  if (other && other.id !== ticketId) {
+    throw ApiError.conflict(`Ticket ID prefix ${idPrefix} is already used by "${other.name}"`);
+  }
+}
+
 /** Uses the given festival, or falls back to the latest one (most recent start date). */
 async function resolveFestivalId(festivalId?: string) {
   if (festivalId) {
@@ -106,6 +121,7 @@ export async function createTicket(data: {
   const festivalId = await resolveFestivalId(data.festivalId);
   assertPriceMatchesType(data.ticketType, data.price);
   assertAgeRange(data.minAge, data.maxAge);
+  await assertIdPrefixAvailable(data.idPrefix);
   const preset = TYPE_PRESETS[data.ticketType] ?? {};
 
   return ticketRepository.create({
@@ -128,6 +144,7 @@ export async function createTicket(data: {
     perks: data.perks ?? [],
     validityDays: data.validityDays ?? null,
     allowReentry: data.allowReentry ?? false,
+    idPrefix: data.idPrefix ?? null,
   });
 }
 
@@ -148,6 +165,14 @@ export async function updateTicket(
   const ticket = await getTicket(id);
   assertPriceMatchesType(data.ticketType ?? ticket.ticketType, data.price ?? Number(ticket.price));
   assertAgeRange(data.minAge ?? ticket.minAge, data.maxAge ?? ticket.maxAge);
+  if (data.idPrefix !== undefined && data.idPrefix !== ticket.idPrefix) {
+    await assertIdPrefixAvailable(data.idPrefix, id);
+    // Issued numbers already carry the old prefix; changing it would split one ticket type across two.
+    const issued = await prisma.ticketInstance.count({ where: { ticketId: id } });
+    if (issued > 0) {
+      throw ApiError.badRequest('Ticket ID prefix cannot be changed after tickets have been issued');
+    }
+  }
   const updateData: Record<string, unknown> = { ...data };
 
   if (data.totalQuantity !== undefined && data.totalQuantity !== ticket.totalQuantity) {

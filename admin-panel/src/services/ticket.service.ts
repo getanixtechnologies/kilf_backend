@@ -39,6 +39,8 @@ export interface TicketInput {
   perks?: string[];
   validityDays?: number | null;
   allowReentry?: boolean;
+  /** Letters in front of this ticket's IDs (e.g. VIP → VIP-123456); null = default format. */
+  idPrefix?: string | null;
 }
 
 export async function createTicket(input: TicketInput): Promise<Ticket> {

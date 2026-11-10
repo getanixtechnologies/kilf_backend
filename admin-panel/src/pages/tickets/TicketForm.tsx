@@ -44,6 +44,10 @@ const ticketSchema = z
     maxAge: optionalAge,
     validityDays: optionalDays,
     allowReentry: z.boolean(),
+    idPrefix: z
+      .string()
+      .trim()
+      .refine((v) => v === '' || /^[A-Za-z]{2,10}$/.test(v), 'Use 2 to 10 letters (A-Z), no numbers or symbols'),
   })
   .refine((d) => new Date(d.salesEnd) > new Date(d.salesStart), {
     message: 'Sales end must be after sales start',
@@ -92,6 +96,7 @@ export function TicketForm({ defaultValues, fixedFestivalId, onSubmit, submitLab
     handleSubmit,
     control,
     setValue,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm<TicketFormValues>({
     resolver: zodResolver(ticketSchema),
@@ -114,8 +119,10 @@ export function TicketForm({ defaultValues, fixedFestivalId, onSubmit, submitLab
       maxAge: defaultValues?.maxAge != null ? String(defaultValues.maxAge) : '',
       validityDays: defaultValues?.validityDays != null ? String(defaultValues.validityDays) : '',
       allowReentry: defaultValues?.allowReentry ?? false,
+      idPrefix: defaultValues?.idPrefix ?? '',
     },
   });
+  const idPrefix = watch('idPrefix') ?? '';
 
   function handleTypeChange(type: TicketType) {
     setValue('ticketType', type);
@@ -161,6 +168,26 @@ export function TicketForm({ defaultValues, fixedFestivalId, onSubmit, submitLab
                   </SelectContent>
                 </Select>
               )}
+            />
+          </Field>
+
+          <Field
+            label="Ticket ID prefix"
+            htmlFor="idPrefix"
+            hint={
+              idPrefix.trim()
+                ? `Ticket IDs will look like ${idPrefix.trim().toUpperCase()}-123456. Checkers type only the number.`
+                : 'Letters only, e.g. VIP or THREE. Blank = the default ticket ID format.'
+            }
+            error={errors.idPrefix?.message}
+          >
+            <Input
+              id="idPrefix"
+              placeholder="VIP"
+              maxLength={10}
+              autoComplete="off"
+              className="font-mono uppercase"
+              {...register('idPrefix')}
             />
           </Field>
 

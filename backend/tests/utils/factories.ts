@@ -50,6 +50,8 @@ export async function createTicket(
     minAge: number;
     maxAge: number;
     multiDay: boolean;
+    validityDays: number;
+    idPrefix: string;
   }> = {}
 ) {
   const totalQuantity = overrides.totalQuantity ?? 100;
@@ -72,6 +74,8 @@ export async function createTicket(
       minAge: overrides.minAge,
       maxAge: overrides.maxAge,
       multiDay: overrides.multiDay ?? false,
+      validityDays: overrides.validityDays,
+      idPrefix: overrides.idPrefix,
     },
   });
 }

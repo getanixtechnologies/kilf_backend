@@ -216,6 +216,9 @@ model Ticket {
   validityDays        Int?     @map("validity_days")
   /// Allow more than one entry per event day (re-entry).
   allowReentry        Boolean  @default(false) @map("allow_reentry")
+  /// Letters put in front of ticket and booking numbers for this ticket, e.g. "VIP" -> VIP-123456.
+  /// Null = the default format (LF-2026-123456). Unique so a prefix identifies one ticket type.
+  idPrefix            String?  @unique @map("id_prefix") @db.VarChar(10)
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")

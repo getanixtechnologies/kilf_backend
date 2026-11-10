@@ -67,6 +67,7 @@ export interface Ticket {
   perks?: string[];
   validityDays?: number | null;
   allowReentry?: boolean;
+  idPrefix?: string | null;
   createdAt: string;
   updatedAt: string;
   ticketsSold?: number;

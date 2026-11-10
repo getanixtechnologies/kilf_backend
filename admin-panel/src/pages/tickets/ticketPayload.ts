@@ -14,5 +14,6 @@ export function toTicketPayload(values: TicketFormValues): TicketInput {
     minAge: values.minAge === '' ? null : Number(values.minAge),
     maxAge: values.maxAge === '' ? null : Number(values.maxAge),
     validityDays: values.validityDays === '' ? null : Number(values.validityDays),
+    idPrefix: values.idPrefix.trim().toUpperCase() || null,
   };
 }

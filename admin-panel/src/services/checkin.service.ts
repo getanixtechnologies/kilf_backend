@@ -44,6 +44,8 @@ export interface TicketNumberFormat {
   /** Digits in the suffix; shorter typed suffixes are zero-padded. */
   digits: number;
   example: string;
+  /** Every fixed part in use: one per ticket type with an ID prefix, then the default. */
+  prefixes: { prefix: string; label: string }[];
 }
 
 export async function getTicketNumberFormat(): Promise<TicketNumberFormat> {

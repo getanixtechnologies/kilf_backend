@@ -246,3 +246,13 @@ export async function checkInTicket(ticketNumber: string, adminId: string, venue
     include: { checkIns: { orderBy: { checkedInAt: 'desc' } } },
   });
 }
+
+/** Ticket types with a configured ID prefix, for the checker's manual-entry box. */
+export async function listTicketIdPrefixes() {
+  const tickets = await prisma.ticket.findMany({
+    where: { idPrefix: { not: null }, archivedAt: null },
+    select: { name: true, idPrefix: true },
+    orderBy: { idPrefix: 'asc' },
+  });
+  return tickets as { name: string; idPrefix: string }[];
+}

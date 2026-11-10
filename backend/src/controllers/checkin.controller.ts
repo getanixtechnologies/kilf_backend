@@ -9,11 +9,21 @@ import * as checkinService from '../services/checkin.service';
 import * as verificationLogService from '../services/verificationLog.service';
 import { recordAuditLogFromRequest } from '../services/auditLog.service';
 
-/** The fixed part of ticket numbers, so the manual-entry box only takes the suffix. */
+/**
+ * The fixed parts of ticket numbers, so the manual-entry box only takes the
+ * unique part. `prefix` is the default format; `prefixes` lists it plus one
+ * entry per ticket type with a configured ID prefix.
+ */
 export const numberFormat = asyncHandler(async (_req: Request, res: Response) => {
+  const configured = await checkinService.listTicketIdPrefixes();
+  const fallback = ticketNumberPrefix();
+  const prefixes = [
+    ...configured.map((t) => ({ prefix: ticketNumberPrefix(t.idPrefix), label: t.name })),
+    { prefix: fallback, label: 'Other tickets' },
+  ];
   return sendSuccess(
     res,
-    { prefix: ticketNumberPrefix(), digits: TICKET_NUMBER_DIGITS, example: `${ticketNumberPrefix()}000123` },
+    { prefix: fallback, digits: TICKET_NUMBER_DIGITS, example: `${fallback}000123`, prefixes },
     'Ticket number format'
   );
 });

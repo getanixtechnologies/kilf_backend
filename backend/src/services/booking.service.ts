@@ -190,7 +190,7 @@ async function reserveInventoryAndCreateBooking(input: CreateBookingInput) {
     let attempt = 0;
     for (;;) {
       attempt += 1;
-      const bookingNumber = generateBookingNumber();
+      const bookingNumber = generateBookingNumber(ticket.idPrefix);
       try {
         booking = await tx.booking.create({
           data: {
@@ -264,6 +264,19 @@ async function releaseInventory(
   await releaseShowSeats(tx, bookingId);
 }
 
+/**
+ * A ticket number not yet in use. Checked before insert because a unique
+ * violation would abort the surrounding transaction.
+ */
+async function uniqueTicketNumber(tx: Prisma.TransactionClient, idPrefix: string | null) {
+  for (let i = 0; i < 10; i++) {
+    const ticketNumber = generateTicketNumber(idPrefix);
+    const taken = await tx.ticketInstance.findUnique({ where: { ticketNumber }, select: { id: true } });
+    if (!taken) return ticketNumber;
+  }
+  throw ApiError.conflict('Could not allocate a ticket number, please retry');
+}
+
 /** Issues one QR ticket per attendee (falling back to one per unit for bookings that predate attendees). */
 async function issueTicketInstances(
   tx: Prisma.TransactionClient,
@@ -275,11 +288,12 @@ async function issueTicketInstances(
       where: { bookingItemId: item.id },
       orderBy: { createdAt: 'asc' },
     });
+    const { idPrefix } = await tx.ticket.findUniqueOrThrow({ where: { id: item.ticketId }, select: { idPrefix: true } });
     const attendeeIds: (string | null)[] =
       attendees.length > 0 ? attendees.map((a) => a.id) : Array.from({ length: item.quantity }, () => null);
 
     for (const attendeeId of attendeeIds) {
-      const ticketNumber = generateTicketNumber();
+      const ticketNumber = await uniqueTicketNumber(tx, idPrefix);
       const qrCode = await generateQrCodeDataUrl(ticketNumber);
       await tx.ticketInstance.create({
         data: {

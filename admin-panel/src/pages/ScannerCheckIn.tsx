@@ -17,6 +17,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { formatDate } from '@/lib/utils';
 
 const AUTO_KEY = 'kilf.scanner.autoCheckIn';
+const PREFIX_KEY = 'kilf.scanner.idPrefix';
 const DONE_DISMISS_MS = 1500;
 
 type Mode = 'home' | 'scan' | 'manual';
@@ -41,6 +42,14 @@ function readAuto(): boolean {
     return localStorage.getItem(AUTO_KEY) === '1';
   } catch {
     return false;
+  }
+}
+
+function readPrefix(): string {
+  try {
+    return localStorage.getItem(PREFIX_KEY) ?? '';
+  } catch {
+    return '';
   }
 }
 
@@ -69,7 +78,21 @@ export function ScannerCheckIn() {
   const seq = useRef(0);
 
   const format = useQuery({ queryKey: ['ticket-number-format'], queryFn: getTicketNumberFormat, staleTime: 60 * 60 * 1000 });
-  const prefix = format.data?.prefix ?? '';
+  const prefixes = format.data?.prefixes ?? [];
+  const [chosenPrefix, setChosenPrefix] = useState(readPrefix);
+  // The checker's last pick if it still exists, else the first configured one.
+  const prefix =
+    prefixes.find((p) => p.prefix === chosenPrefix)?.prefix ?? prefixes[0]?.prefix ?? format.data?.prefix ?? '';
+
+  function choosePrefix(value: string) {
+    setChosenPrefix(value);
+    try {
+      localStorage.setItem(PREFIX_KEY, value);
+    } catch {
+      /* ignore */
+    }
+    window.setTimeout(() => suffixRef.current?.focus(), 0);
+  }
 
   const clear = useCallback(() => {
     window.clearTimeout(dismissTimer.current);
@@ -151,8 +174,8 @@ export function ScannerCheckIn() {
   function fullNumber(typed: string) {
     const s = typed.trim().toUpperCase();
     if (!s) return '';
-    // Pasted a whole number: use as is.
-    if (prefix && s.startsWith(prefix)) return s;
+    // Pasted a whole number (any known prefix): use as is.
+    if (prefixes.some((p) => s.startsWith(p.prefix)) || (prefix && s.startsWith(prefix))) return s;
     const digits = format.data?.digits ?? 0;
     const padded = /^\d+$/.test(s) && s.length < digits ? s.padStart(digits, '0') : s;
     return `${prefix}${padded}`;
@@ -186,7 +209,7 @@ export function ScannerCheckIn() {
           <BigOption
             icon={Keyboard}
             title="Enter Booking ID"
-            subtitle={prefix ? `Type the number after ${prefix}` : 'Type the ticket number'}
+            subtitle={prefixes.length > 1 ? 'Pick the ticket type, then type its number' : prefix ? `Type the number after ${prefix}` : 'Type the ticket number'}
             onClick={() => open('manual')}
             variant="outline"
           />
@@ -220,6 +243,30 @@ export function ScannerCheckIn() {
 
           {mode === 'manual' && !result && (
             <form onSubmit={handleManual} className="space-y-3">
+              {prefixes.length > 1 && (
+                <div className="space-y-2">
+                  <span className="block text-base font-medium text-foreground">Ticket type</span>
+                  <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Ticket ID prefix">
+                    {prefixes.map((p) => (
+                      <button
+                        key={p.prefix}
+                        type="button"
+                        role="radio"
+                        aria-checked={p.prefix === prefix}
+                        onClick={() => choosePrefix(p.prefix)}
+                        className={`min-h-12 rounded-lg border-2 px-3 py-2 text-left ${
+                          p.prefix === prefix
+                            ? 'border-primary bg-primary text-primary-foreground'
+                            : 'border-input bg-background text-foreground'
+                        }`}
+                      >
+                        <span className="block font-mono text-lg font-semibold">{p.prefix}</span>
+                        <span className="block text-sm opacity-80">{p.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
               <label htmlFor="ticket-suffix" className="block text-base font-medium text-foreground">
                 Booking / ticket ID
               </label>
