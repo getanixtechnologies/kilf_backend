@@ -7,13 +7,12 @@ import { recordAuditLogFromRequest } from '../services/auditLog.service';
 
 export const list = asyncHandler(async (req: Request, res: Response) => {
   const { page, limit } = getPaginationParams(req);
-  const { festivalId, status, ticketType, search } = req.query as Record<string, string | undefined>;
+  const { festivalId, status, search } = req.query as Record<string, string | undefined>;
   const result = await ticketService.listTickets({
     page,
     limit,
     festivalId,
     status: status as any,
-    ticketType: ticketType as any,
     search,
   });
   return sendSuccess(res, result.items, 'Tickets fetched', 200, result.pagination);

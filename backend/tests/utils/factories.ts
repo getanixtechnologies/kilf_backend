@@ -1,4 +1,4 @@
-import { AdminRole, TicketType } from '@prisma/client';
+import { AdminRole } from '@prisma/client';
 import { prisma } from '../../src/config/prisma';
 import { hashPassword } from '../../src/utils/password';
 import { signAccessToken } from '../../src/utils/jwt';
@@ -37,7 +37,6 @@ export async function createTicket(
   festivalId: string,
   overrides: Partial<{
     name: string;
-    ticketType: TicketType;
     price: number;
     totalQuantity: number;
     availableQuantity: number;
@@ -60,7 +59,6 @@ export async function createTicket(
       festivalId,
       name: overrides.name ?? 'General Admission',
       description: 'Test ticket',
-      ticketType: overrides.ticketType ?? 'GENERAL',
       price: overrides.price ?? 500,
       totalQuantity,
       availableQuantity: overrides.availableQuantity ?? totalQuantity,

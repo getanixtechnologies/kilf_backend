@@ -107,7 +107,7 @@ describe('GET /api/auth/bookings', () => {
     expect(numbers).not.toContain(b1.body.data.booking.bookingNumber);
 
     const first = res.body.data[0];
-    expect(first.ticket).toEqual({ name: ticket.name, ticketType: ticket.ticketType });
+    expect(first.ticket).toEqual({ name: ticket.name });
     expect(first.festival.name).toBeDefined();
     expect(first.customer.email).toBe('a@kilf.dev');
     expect(first.payment.status).toBe('SUCCESS');
@@ -190,7 +190,7 @@ describe('PATCH /api/auth/me', () => {
 });
 
 describe('Elite Pass and optional buyer phone', () => {
-  it('books an Elite Pass created from the admin preset without a date or show session', async () => {
+  it('books an Elite Pass created in admin without a date or show session', async () => {
     const { token } = await (await import('../utils/factories')).createAdmin();
     const festival = await createFestival();
     const created = await request(app)
@@ -199,7 +199,6 @@ describe('Elite Pass and optional buyer phone', () => {
       .send({
         festivalId: festival.id,
         name: 'Elite Pass',
-        ticketType: 'ELITE',
         price: 1500,
         totalQuantity: 50,
         salesStart: new Date(Date.now() - 60000).toISOString(),

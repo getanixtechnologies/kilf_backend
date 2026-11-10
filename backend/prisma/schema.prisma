@@ -25,20 +25,6 @@ enum FestivalStatus {
   COMPLETED
 }
 
-enum TicketType {
-  GENERAL
-  VIP
-  STUDENT
-  EARLY_BIRD
-  DAY_PASS
-  FULL_FESTIVAL
-  YOUNG_READER
-  ELITE
-  KHASAK_SHOW
-  DRAMA
-  NEW_YEAR_EVE
-}
-
 enum ShowSessionStatus {
   ACTIVE
   INACTIVE
@@ -192,7 +178,6 @@ model Ticket {
   festivalId        String           @map("festival_id")
   name              String
   description       String?
-  ticketType        TicketType       @default(GENERAL) @map("ticket_type")
   price             Decimal          @db.Decimal(12, 2)
   totalQuantity     Int              @map("total_quantity")
   availableQuantity Int              @map("available_quantity")

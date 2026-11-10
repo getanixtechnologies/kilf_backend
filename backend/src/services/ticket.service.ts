@@ -1,4 +1,4 @@
-import { TicketSaleStatus, TicketType } from '@prisma/client';
+import { TicketSaleStatus } from '@prisma/client';
 import * as ticketRepository from '../repositories/ticket.repository';
 import { getFestival } from './festival.service';
 import { ApiError } from '../utils/ApiError';
@@ -22,24 +22,6 @@ export interface PassRules {
   idPrefix: string | null;
 }
 
-/** Rules each pass type implies; anything the admin sends explicitly overrides these. */
-const TYPE_PRESETS: Partial<Record<TicketType, Partial<PassRules>>> = {
-  DAY_PASS: { requiresDate: true },
-  FULL_FESTIVAL: { multiDay: true },
-  YOUNG_READER: { multiDay: true },
-  // Elite is a full-festival pass: no day of visit or show session to pick.
-  ELITE: { multiDay: true, requiresDate: false, requiresShowSession: false },
-  KHASAK_SHOW: { requiresShowSession: true },
-  DRAMA: { requiresShowSession: true },
-  NEW_YEAR_EVE: { gstRate: 0 },
-};
-
-function assertPriceMatchesType(ticketType: TicketType, price: number) {
-  if (ticketType === 'NEW_YEAR_EVE' && price !== 0) {
-    throw ApiError.badRequest("New Year's Eve registration is free; price must be 0");
-  }
-}
-
 function assertAgeRange(minAge?: number | null, maxAge?: number | null) {
   if (minAge != null && maxAge != null && minAge > maxAge) {
     throw ApiError.badRequest('minAge cannot be greater than maxAge');
@@ -51,7 +33,6 @@ export interface ListTicketsParams {
   limit: number;
   festivalId?: string;
   status?: TicketSaleStatus;
-  ticketType?: TicketType;
   search?: string;
 }
 
@@ -60,7 +41,6 @@ export async function listTickets(params: ListTicketsParams) {
   const { items, total } = await ticketRepository.findMany({
     festivalId: params.festivalId,
     status: params.status,
-    ticketType: params.ticketType,
     search: params.search,
     skip,
     take: params.limit,
@@ -137,7 +117,6 @@ export async function createTicket(data: {
   festivalId?: string;
   name: string;
   description?: string;
-  ticketType: TicketType;
   price: number;
   totalQuantity: number;
   salesStart: Date;
@@ -145,28 +124,25 @@ export async function createTicket(data: {
   status?: TicketSaleStatus;
 } & Partial<PassRules>) {
   const festivalId = await resolveFestivalId(data.festivalId);
-  assertPriceMatchesType(data.ticketType, data.price);
   assertAgeRange(data.minAge, data.maxAge);
   await assertIdPrefixAvailable(data.idPrefix);
-  const preset = TYPE_PRESETS[data.ticketType] ?? {};
 
   return ticketRepository.create({
     festivalId,
     name: data.name,
     description: data.description,
-    ticketType: data.ticketType,
     price: data.price,
     totalQuantity: data.totalQuantity,
     availableQuantity: data.totalQuantity,
     salesStart: data.salesStart,
     salesEnd: data.salesEnd,
     status: data.status ?? 'ACTIVE',
-    gstRate: data.gstRate ?? preset.gstRate ?? 18,
-    requiresDate: data.requiresDate ?? preset.requiresDate ?? false,
-    requiresShowSession: data.requiresShowSession ?? preset.requiresShowSession ?? false,
+    gstRate: data.gstRate ?? 18,
+    requiresDate: data.requiresDate ?? false,
+    requiresShowSession: data.requiresShowSession ?? false,
     minAge: data.minAge ?? null,
     maxAge: data.maxAge ?? null,
-    multiDay: data.multiDay ?? preset.multiDay ?? false,
+    multiDay: data.multiDay ?? false,
     perks: data.perks ?? [],
     validityDays: data.validityDays ?? null,
     allowReentry: data.allowReentry ?? false,
@@ -179,7 +155,6 @@ export async function updateTicket(
   data: Partial<{
     name: string;
     description: string;
-    ticketType: TicketType;
     price: number;
     totalQuantity: number;
     salesStart: Date;
@@ -189,7 +164,6 @@ export async function updateTicket(
     Partial<PassRules>
 ) {
   const ticket = await getTicket(id);
-  assertPriceMatchesType(data.ticketType ?? ticket.ticketType, data.price ?? Number(ticket.price));
   assertAgeRange(data.minAge ?? ticket.minAge, data.maxAge ?? ticket.maxAge);
   if (data.idPrefix !== undefined && data.idPrefix !== ticket.idPrefix) {
     await assertIdPrefixAvailable(data.idPrefix, id);
@@ -272,7 +246,6 @@ function toPublicTicketDto(ticket: Awaited<ReturnType<typeof ticketRepository.fi
     festivalId: ticket.festivalId,
     name: ticket.name,
     description: ticket.description,
-    ticketType: ticket.ticketType,
     price: ticket.price,
     availableQuantity: ticket.availableQuantity,
     salesStart: ticket.salesStart,

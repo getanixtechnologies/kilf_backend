@@ -73,13 +73,13 @@ export async function getMonthlyRevenue(months: number): Promise<MonthlyRevenueR
   `;
 }
 
-export async function getRevenueByTicketType() {
+export async function getRevenueByTicket() {
   const items = await prisma.bookingItem.findMany({
     where: { booking: { status: { in: ['CONFIRMED', 'REFUNDED'] } } },
-    select: { quantity: true, subtotal: true, ticket: { select: { ticketType: true, name: true, id: true } } },
+    select: { quantity: true, subtotal: true, ticket: { select: { name: true, id: true } } },
   });
 
-  const map = new Map<string, { ticketId: string; name: string; ticketType: string; quantity: number; revenue: Prisma.Decimal }>();
+  const map = new Map<string, { ticketId: string; name: string; quantity: number; revenue: Prisma.Decimal }>();
   for (const item of items) {
     const key = item.ticket.id;
     const existing = map.get(key);
@@ -90,7 +90,6 @@ export async function getRevenueByTicketType() {
       map.set(key, {
         ticketId: item.ticket.id,
         name: item.ticket.name,
-        ticketType: item.ticket.ticketType,
         quantity: item.quantity,
         revenue: item.subtotal,
       });

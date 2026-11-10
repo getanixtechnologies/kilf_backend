@@ -15,7 +15,6 @@ describe('Ticket management', () => {
       .send({
         festivalId: festival.id,
         name: 'General Admission',
-        ticketType: 'GENERAL',
         price: 500,
         totalQuantity: 100,
         salesStart: new Date(Date.now() - 1000).toISOString(),
@@ -37,7 +36,6 @@ describe('Ticket management', () => {
       .set(authHeader(token))
       .send({
         name: 'No Festival Pass',
-        ticketType: 'GENERAL',
         price: 500,
         totalQuantity: 10,
         salesStart: new Date(Date.now() - 1000).toISOString(),

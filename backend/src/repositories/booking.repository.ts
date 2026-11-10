@@ -17,7 +17,7 @@ const listInclude = {
   festival: { select: { id: true, name: true } },
   bookingItems: {
     include: {
-      ticket: { select: { id: true, name: true, ticketType: true } },
+      ticket: { select: { id: true, name: true } },
       attendees: { include: { showSession: { select: { id: true, name: true, startsAt: true } } } },
     },
   },

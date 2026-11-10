@@ -1,23 +1,21 @@
-import { Prisma, TicketSaleStatus, TicketType } from '@prisma/client';
+import { Prisma, TicketSaleStatus } from '@prisma/client';
 import { prisma } from '../config/prisma';
 
 export interface TicketListFilters {
   festivalId?: string;
   status?: TicketSaleStatus;
-  ticketType?: TicketType;
   search?: string;
   skip: number;
   take: number;
 }
 
 function buildWhere(
-  filters: Pick<TicketListFilters, 'festivalId' | 'status' | 'ticketType' | 'search'>
+  filters: Pick<TicketListFilters, 'festivalId' | 'status' | 'search'>
 ): Prisma.TicketWhereInput {
   return {
     archivedAt: null,
     ...(filters.festivalId ? { festivalId: filters.festivalId } : {}),
     ...(filters.status ? { status: filters.status } : {}),
-    ...(filters.ticketType ? { ticketType: filters.ticketType } : {}),
     ...(filters.search ? { name: { contains: filters.search, mode: 'insensitive' } } : {}),
   };
 }

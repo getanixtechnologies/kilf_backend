@@ -1,12 +1,11 @@
 import { api } from './api';
-import { ApiItemResponse, ApiListResponse, Ticket, TicketSaleStatus, TicketType } from '@/types';
+import { ApiItemResponse, ApiListResponse, Ticket, TicketSaleStatus } from '@/types';
 
 export interface TicketListParams {
   page?: number;
   limit?: number;
   festivalId?: string;
   status?: TicketSaleStatus;
-  ticketType?: TicketType;
   search?: string;
 }
 
@@ -24,7 +23,6 @@ export interface TicketInput {
   festivalId?: string;
   name: string;
   description?: string;
-  ticketType: TicketType;
   price: number;
   totalQuantity: number;
   salesStart: string;

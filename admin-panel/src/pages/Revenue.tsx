@@ -31,7 +31,7 @@ import {
   getRevenueSummary,
 } from '@/services/revenue.service';
 import { CHART_COLORS, CHART_GRID, CHART_PRIMARY } from '@/lib/chartTheme';
-import { formatCurrency, formatDate, formatLabel, formatNumber } from '@/lib/utils';
+import { formatCurrency, formatDate, formatNumber } from '@/lib/utils';
 
 export default function RevenuePage() {
   const summary = useQuery({ queryKey: ['revenue-summary'], queryFn: getRevenueSummary });
@@ -136,7 +136,6 @@ export default function RevenuePage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Ticket</TableHead>
-                  <TableHead>Type</TableHead>
                   <TableHead className="text-right">Sold</TableHead>
                   <TableHead className="text-right">Revenue</TableHead>
                 </TableRow>
@@ -145,7 +144,6 @@ export default function RevenuePage() {
                 {(byTicket.data ?? []).map((row) => (
                   <TableRow key={row.ticketId}>
                     <TableCell className="font-medium">{row.name}</TableCell>
-                    <TableCell className="text-muted-foreground">{formatLabel(row.ticketType)}</TableCell>
                     <TableCell className="text-right">{formatNumber(row.quantitySold)}</TableCell>
                     <TableCell className="whitespace-nowrap text-right font-medium">{formatCurrency(row.revenue)}</TableCell>
                   </TableRow>

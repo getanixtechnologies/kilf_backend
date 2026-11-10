@@ -8,7 +8,6 @@ const instanceInclude = {
     select: {
       id: true,
       name: true,
-      ticketType: true,
       multiDay: true,
       requiresDate: true,
       validityDays: true,

@@ -14,7 +14,7 @@ export interface VerifyResult {
   message: string;
   ticket:
     | (TicketInstance & {
-        ticket: { id: string; name: string; ticketType: string };
+        ticket: { id: string; name: string };
         attendee?: {
           name: string;
           validDate: string | null;

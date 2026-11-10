@@ -67,7 +67,7 @@ export interface Booking {
   totalAmount: string;
   currency: string;
   createdAt: string;
-  ticket: { name: string; ticketType: string } | null;
+  ticket: { name: string } | null;
   festival: { name: string; startDate: string; endDate: string };
   /** null for free bookings */
   payment: {
@@ -252,7 +252,7 @@ export const EXAMPLE_BOOKING: Booking = {
   totalAmount: '1180',
   currency: 'INR',
   createdAt: '2026-11-10T09:15:00.000Z',
-  ticket: { name: 'Day Pass', ticketType: 'DAY_PASS' },
+  ticket: { name: 'Day Pass' },
   festival: { name: 'KILF 2026', startDate: '2026-12-10T00:00:00.000Z', endDate: '2026-12-14T00:00:00.000Z' },
   payment: {
     status: 'SUCCESS',

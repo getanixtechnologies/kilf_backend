@@ -5,7 +5,7 @@ import { ApiError } from '../utils/ApiError';
 const guestBookingInclude = {
   festival: { select: { name: true, startDate: true, endDate: true } },
   customer: { select: { name: true, email: true, phone: true } },
-  bookingItems: { select: { ticket: { select: { name: true, ticketType: true } } } },
+  bookingItems: { select: { ticket: { select: { name: true } } } },
   payments: { orderBy: { createdAt: 'desc' } },
   ticketInstances: {
     orderBy: { ticketNumber: 'asc' },
@@ -36,7 +36,7 @@ function toGuestBookingDto(b: GuestBookingRow) {
     totalAmount: b.totalAmount,
     currency: b.currency,
     createdAt: b.createdAt,
-    ticket: ticket ? { name: ticket.name, ticketType: ticket.ticketType } : null,
+    ticket: ticket ? { name: ticket.name } : null,
     festival: b.festival,
     payment: payment
       ? {

@@ -55,7 +55,7 @@ const options: swaggerJsdoc.Options = {
             createdAt: { type: 'string', format: 'date-time' },
             ticket: {
               type: 'object',
-              properties: { name: { type: 'string' }, ticketType: { type: 'string' } },
+              properties: { name: { type: 'string' } },
             },
             festival: {
               type: 'object',

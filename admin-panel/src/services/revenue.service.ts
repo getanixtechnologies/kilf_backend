@@ -26,7 +26,6 @@ export async function getMonthlyRevenue(months = 12): Promise<RevenuePoint[]> {
 export interface RevenueByTicket {
   ticketId: string;
   name: string;
-  ticketType: string;
   quantitySold: number;
   revenue: number;
 }

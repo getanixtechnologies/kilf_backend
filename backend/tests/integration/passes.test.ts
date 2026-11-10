@@ -78,7 +78,7 @@ describe('Attendee details', () => {
 describe('Young Reader age check', () => {
   it('accepts an eligible reader and rejects an adult', async () => {
     const festival = await createFestival({ startDate: new Date('2026-12-31T00:00:00Z'), endDate: new Date('2027-01-04T00:00:00Z') });
-    const ticket = await createTicket(festival.id, { ticketType: 'YOUNG_READER', price: 100, maxAge: 17 });
+    const ticket = await createTicket(festival.id, { price: 100, maxAge: 17 });
 
     const ok = await book({
       ticketId: ticket.id,
@@ -100,7 +100,7 @@ describe('Young Reader age check', () => {
 describe('Day Pass', () => {
   it('requires a date inside the festival and stores it per attendee', async () => {
     const festival = await createFestival({ startDate: new Date('2026-12-31T00:00:00Z'), endDate: new Date('2027-01-04T00:00:00Z') });
-    const ticket = await createTicket(festival.id, { ticketType: 'DAY_PASS', price: 150, requiresDate: true });
+    const ticket = await createTicket(festival.id, { price: 150, requiresDate: true });
 
     const missing = await book({ ticketId: ticket.id, attendees: attendees(1) });
     expect(missing.status).toBe(400);
@@ -121,7 +121,6 @@ describe('Elite pass / Khasak show seats', () => {
     const festival = await createFestival();
     const show = await createShowSession(festival.id, { totalSeats: 5 });
     const ticket = await createTicket(festival.id, {
-      ticketType: 'ELITE',
       price: 1500,
       requiresShowSession: true,
       multiDay: true,
@@ -155,7 +154,6 @@ describe('Elite pass / Khasak show seats', () => {
     const festival = await createFestival();
     const show = await createShowSession(festival.id, { totalSeats: 1 });
     const ticket = await createTicket(festival.id, {
-      ticketType: 'KHASAK_SHOW',
       price: 1000,
       requiresShowSession: true,
       totalQuantity: 10,
@@ -187,7 +185,7 @@ describe('Elite pass / Khasak show seats', () => {
 describe("New Year's Eve free registration", () => {
   it('confirms immediately with tickets and no payment', async () => {
     const festival = await createFestival();
-    const ticket = await createTicket(festival.id, { ticketType: 'NEW_YEAR_EVE', price: 0 });
+    const ticket = await createTicket(festival.id, { price: 0 });
 
     const res = await book({ ticketId: ticket.id, attendees: attendees(2) });
 
@@ -203,27 +201,10 @@ describe("New Year's Eve free registration", () => {
     expect(booking.ticketInstances).toHaveLength(2);
   });
 
-  it('rejects a non-zero price for the free type', async () => {
-    const { token } = await createAdmin();
-    const festival = await createFestival();
-    const res = await request(app)
-      .post('/api/admin/tickets')
-      .set(authHeader(token))
-      .send({
-        festivalId: festival.id,
-        name: 'NYE',
-        ticketType: 'NEW_YEAR_EVE',
-        price: 100,
-        totalQuantity: 10,
-        salesStart: new Date().toISOString(),
-        salesEnd: new Date(Date.now() + 86400000).toISOString(),
-      });
-    expect(res.status).toBe(400);
-  });
 });
 
 describe('Admin ticket pass rules', () => {
-  it('applies the presets for Elite passes', async () => {
+  it('creates a ticket with every pass rule off unless sent', async () => {
     const { token } = await createAdmin();
     const festival = await createFestival();
     const res = await request(app)
@@ -232,7 +213,6 @@ describe('Admin ticket pass rules', () => {
       .send({
         festivalId: festival.id,
         name: 'Elite Pass',
-        ticketType: 'ELITE',
         price: 1500,
         totalQuantity: 50,
         salesStart: new Date().toISOString(),
@@ -240,10 +220,11 @@ describe('Admin ticket pass rules', () => {
         perks: ['Front-row seating'],
       });
     expect(res.status).toBe(201);
-    // Elite is a whole-festival pass: no day of visit or show session.
+    // No ticket type presets: only the switches the admin sends apply.
     expect(res.body.data.requiresShowSession).toBe(false);
     expect(res.body.data.requiresDate).toBe(false);
-    expect(res.body.data.multiDay).toBe(true);
+    expect(res.body.data.multiDay).toBe(false);
+    expect(res.body.data).not.toHaveProperty('ticketType');
     expect(Number(res.body.data.gstRate)).toBe(18);
     expect(res.body.data.perks).toEqual(['Front-row seating']);
   });
@@ -252,7 +233,7 @@ describe('Admin ticket pass rules', () => {
 describe('Multi-day check-in', () => {
   async function bookFestivalPass() {
     const festival = await runningFestival();
-    const ticket = await createTicket(festival.id, { ticketType: 'FULL_FESTIVAL', multiDay: true });
+    const ticket = await createTicket(festival.id, { multiDay: true });
     const res = await book({ ticketId: ticket.id, attendees: attendees(1) });
     return prisma.ticketInstance.findFirstOrThrow({
       where: { booking: { bookingNumber: res.body.data.booking.bookingNumber } },
@@ -287,7 +268,7 @@ describe('Multi-day check-in', () => {
   it('rejects a day pass scanned on the wrong day', async () => {
     const { token } = await createAdmin();
     const festival = await runningFestival();
-    const ticket = await createTicket(festival.id, { ticketType: 'DAY_PASS', requiresDate: true });
+    const ticket = await createTicket(festival.id, { requiresDate: true });
     const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
     const res = await book({ ticketId: ticket.id, attendees: [{ name: 'Tomorrow', validDate: tomorrow }] });
     expect(res.status).toBe(201);

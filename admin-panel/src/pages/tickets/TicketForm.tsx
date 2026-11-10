@@ -3,7 +3,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { Ticket, TicketType } from '@/types';
+import { Ticket } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
@@ -12,7 +12,6 @@ import { Card } from '@/components/ui/card';
 import { Field, FormActions, FormSection } from '@/components/common/FormLayout';
 import { getApiErrorMessage } from '@/services/api';
 import { PerksInput } from './PerksInput';
-import { TICKET_TYPES, TICKET_TYPE_OPTIONS, passRuleDefaults } from '@/lib/ticketTypes';
 
 const optionalAge = z
   .string()
@@ -29,7 +28,6 @@ const ticketSchema = z
     festivalId: z.union([z.string().uuid('Select a festival'), z.literal('')]).optional(),
     name: z.string().min(2, 'Name is required'),
     description: z.string().optional(),
-    ticketType: z.enum(TICKET_TYPES as [TicketType, ...TicketType[]]),
     price: z.coerce.number().nonnegative('Price cannot be negative'),
     gstRate: z.coerce.number().min(0, 'GST cannot be negative').max(100, 'GST cannot exceed 100%'),
     totalQuantity: z.coerce.number().int().positive('Must be at least 1'),
@@ -52,10 +50,6 @@ const ticketSchema = z
   .refine((d) => new Date(d.salesEnd) > new Date(d.salesStart), {
     message: 'Sales end must be after sales start',
     path: ['salesEnd'],
-  })
-  .refine((d) => d.ticketType !== 'NEW_YEAR_EVE' || d.price === 0, {
-    message: "New Year's Eve registration is free; price must be 0",
-    path: ['price'],
   })
   .refine((d) => d.minAge === '' || d.maxAge === '' || Number(d.minAge) <= Number(d.maxAge), {
     message: 'Max age must be at least the min age',
@@ -88,14 +82,10 @@ const RULE_SWITCHES: { name: 'multiDay' | 'requiresDate' | 'requiresShowSession'
 export function TicketForm({ defaultValues, fixedFestivalId, onSubmit, submitLabel }: TicketFormProps) {
   const navigate = useNavigate();
 
-  const initialType: TicketType = defaultValues?.ticketType ?? 'FULL_FESTIVAL';
-  const presets = passRuleDefaults(initialType);
-
   const {
     register,
     handleSubmit,
     control,
-    setValue,
     watch,
     formState: { errors, isSubmitting },
   } = useForm<TicketFormValues>({
@@ -104,17 +94,16 @@ export function TicketForm({ defaultValues, fixedFestivalId, onSubmit, submitLab
       festivalId: defaultValues?.festivalId ?? fixedFestivalId ?? '',
       name: defaultValues?.name ?? '',
       description: defaultValues?.description ?? '',
-      ticketType: initialType,
       price: defaultValues?.price != null ? Number(defaultValues.price) : 0,
-      gstRate: defaultValues?.gstRate != null ? Number(defaultValues.gstRate) : presets.gstRate,
+      gstRate: defaultValues?.gstRate != null ? Number(defaultValues.gstRate) : 18,
       totalQuantity: defaultValues?.totalQuantity ?? 100,
       salesStart: toInputDateTime(defaultValues?.salesStart) || toInputDateTime(new Date().toISOString()),
       salesEnd: toInputDateTime(defaultValues?.salesEnd),
       status: defaultValues?.status ?? 'ACTIVE',
       perks: defaultValues?.perks?.length ? defaultValues.perks : [''],
-      multiDay: defaultValues?.multiDay ?? presets.multiDay,
-      requiresDate: defaultValues?.requiresDate ?? presets.requiresDate,
-      requiresShowSession: defaultValues?.requiresShowSession ?? presets.requiresShowSession,
+      multiDay: defaultValues?.multiDay ?? false,
+      requiresDate: defaultValues?.requiresDate ?? false,
+      requiresShowSession: defaultValues?.requiresShowSession ?? false,
       minAge: defaultValues?.minAge != null ? String(defaultValues.minAge) : '',
       maxAge: defaultValues?.maxAge != null ? String(defaultValues.maxAge) : '',
       validityDays: defaultValues?.validityDays != null ? String(defaultValues.validityDays) : '',
@@ -123,16 +112,6 @@ export function TicketForm({ defaultValues, fixedFestivalId, onSubmit, submitLab
     },
   });
   const idPrefix = watch('idPrefix') ?? '';
-
-  function handleTypeChange(type: TicketType) {
-    setValue('ticketType', type);
-    const rules = passRuleDefaults(type);
-    setValue('gstRate', rules.gstRate);
-    setValue('multiDay', rules.multiDay);
-    setValue('requiresDate', rules.requiresDate);
-    setValue('requiresShowSession', rules.requiresShowSession);
-    if (type === 'NEW_YEAR_EVE') setValue('price', 0);
-  }
 
   async function handleFormSubmit(values: TicketFormValues) {
     try {
@@ -148,27 +127,6 @@ export function TicketForm({ defaultValues, fixedFestivalId, onSubmit, submitLab
         <FormSection title="Ticket details" description="What customers see when they choose a ticket.">
           <Field label="Ticket name" htmlFor="name" required error={errors.name?.message}>
             <Input id="name" placeholder="Festival Pass" {...register('name')} />
-          </Field>
-
-          <Field label="Ticket type" required hint="Picking a type fills in its usual GST and pass rules.">
-            <Controller
-              control={control}
-              name="ticketType"
-              render={({ field }) => (
-                <Select value={field.value} onValueChange={(v) => handleTypeChange(v as TicketType)}>
-                  <SelectTrigger aria-label="Ticket type">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {TICKET_TYPE_OPTIONS.map((o) => (
-                      <SelectItem key={o.value} value={o.value}>
-                        {o.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-            />
           </Field>
 
           <Field
