@@ -48,23 +48,6 @@ describe('Ticket management', () => {
     expect(res.body.data.festivalId).toBe(latest.id);
   });
 
-  it('rejects creating a ticket without a festival when none exist', async () => {
-    const { token } = await createAdmin();
-
-    const res = await request(app)
-      .post('/api/admin/tickets')
-      .set(authHeader(token))
-      .send({
-        name: 'Orphan Pass',
-        price: 500,
-        totalQuantity: 10,
-        salesStart: new Date().toISOString(),
-        salesEnd: new Date(Date.now() + 100000).toISOString(),
-      });
-
-    expect(res.status).toBe(400);
-  });
-
   it('rejects creating a ticket with a non-positive quantity', async () => {
     const { token } = await createAdmin();
     const festival = await createFestival();

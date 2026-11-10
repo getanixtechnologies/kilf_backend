@@ -47,7 +47,7 @@ const ticketSchema = z
     idPrefix: z
       .string()
       .trim()
-      .refine((v) => v === '' || /^[A-Za-z]{2,10}$/.test(v), 'Use 2 to 10 letters (A-Z), no numbers or symbols'),
+      .refine((v) => v === '' || /^[A-Za-z]{1,10}$/.test(v), 'Use 1 to 10 letters (A-Z), no numbers or symbols'),
   })
   .refine((d) => new Date(d.salesEnd) > new Date(d.salesStart), {
     message: 'Sales end must be after sales start',

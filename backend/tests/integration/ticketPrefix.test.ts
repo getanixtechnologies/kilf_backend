@@ -42,7 +42,7 @@ describe('Ticket ID prefix', () => {
       request(app).post('/api/admin/tickets').set(authHeader(token)).send({ ...base, ...extra });
 
     expect((await post({ idPrefix: 'V1P' })).status).toBe(400);
-    expect((await post({ idPrefix: 'A' })).status).toBe(400);
+    expect((await post({ idPrefix: 'A1' })).status).toBe(400);
     expect((await post({ idPrefix: 'LF' })).status).toBe(400);
 
     const created = await post({ idPrefix: prefix.toLowerCase() });
@@ -122,5 +122,26 @@ describe('Validity window by event day', () => {
   it('admits a 5-day ticket on day 5 and rejects it on day 6', async () => {
     expect((await scanOnDay(5, 5)).body.data.code).toBe('VALID');
     expect((await scanOnDay(6, 5)).body.data.code).toBe('EXPIRED');
+  });
+});
+
+describe('Tickets without a festival', () => {
+  it('creates a default festival when none exists', async () => {
+    const { token } = await createAdmin();
+    await prisma.festival.deleteMany();
+    const res = await request(app)
+      .post('/api/admin/tickets')
+      .set(authHeader(token))
+      .send({
+        name: 'First Pass',
+        price: 100,
+        totalQuantity: 10,
+        salesStart: new Date().toISOString(),
+        salesEnd: new Date(Date.now() + DAY_MS).toISOString(),
+      });
+    expect(res.status).toBe(201);
+    const festival = await prisma.festival.findUniqueOrThrow({ where: { id: res.body.data.festivalId } });
+    expect(festival.name).toMatch(/^KILF \d{4}$/);
+    expect(festival.endDate.getTime() - festival.startDate.getTime()).toBe(4 * DAY_MS);
   });
 });

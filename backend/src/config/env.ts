@@ -51,6 +51,10 @@ const envSchema = z.object({
 
   // Ticket numbers look like `${TICKET_NUMBER_PREFIX}-2026-000123`.
   TICKET_NUMBER_PREFIX: z.string().trim().min(1).default('LF'),
+  // Dates for the festival created automatically when the first ticket is added
+  // and none exists yet (YYYY-MM-DD, festival timezone). Check-in validity uses them.
+  FESTIVAL_START_DATE: z.string().regex(/^d{4}-d{2}-d{2}$/).optional(),
+  FESTIVAL_END_DATE: z.string().regex(/^d{4}-d{2}-d{2}$/).optional(),
 
   // Login page linked from checker credential emails. Defaults to `${ADMIN_URL}/login`.
   // Prod: https://admin.kilf.in/login, dev: https://admin.dev.kilf.in/login

@@ -8,7 +8,7 @@ const randomDigits = () =>
   randomInt(0, 10 ** TICKET_NUMBER_DIGITS).toString().padStart(TICKET_NUMBER_DIGITS, '0');
 
 /** Admin-configured ticket prefixes: 2-10 capital letters, e.g. VIP or THREE. */
-export const ID_PREFIX_PATTERN = /^[A-Z]{2,10}$/;
+export const ID_PREFIX_PATTERN = /^[A-Z]{1,10}$/;
 
 /** Prefixes the default formats use, so a ticket can't claim them. */
 export function reservedIdPrefixes(): string[] {

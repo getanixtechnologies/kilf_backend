@@ -5,6 +5,7 @@ import { ApiError } from '../utils/ApiError';
 import { prisma } from '../config/prisma';
 import { buildPagination } from '../utils/apiResponse';
 import { reservedIdPrefixes } from '../utils/idGenerators';
+import { env } from '../config/env';
 
 export interface PassRules {
   gstRate: number;
@@ -96,6 +97,31 @@ async function assertIdPrefixAvailable(idPrefix: string | null | undefined, tick
   }
 }
 
+/**
+ * Creates the festival tickets attach to when none exists yet, so admins can
+ * add tickets without a festival screen. Dates come from FESTIVAL_START_DATE /
+ * FESTIVAL_END_DATE, else today for 5 days. Midnight IST is 18:30 UTC the day before.
+ */
+async function createDefaultFestival() {
+  const istMidnight = (ymd: string) => new Date(`${ymd}T00:00:00+05:30`);
+  const today = new Date(Date.now() + 5.5 * 3600 * 1000).toISOString().slice(0, 10);
+  const startYmd = env.FESTIVAL_START_DATE ?? today;
+  const startDate = istMidnight(startYmd);
+  const endDate = env.FESTIVAL_END_DATE
+    ? istMidnight(env.FESTIVAL_END_DATE)
+    : new Date(startDate.getTime() + 4 * 24 * 3600 * 1000);
+  return prisma.festival.create({
+    data: {
+      name: `KILF ${startYmd.slice(0, 4)}`,
+      startDate,
+      endDate,
+      status: 'PUBLISHED',
+      timezone: 'Asia/Kolkata',
+    },
+    select: { id: true },
+  });
+}
+
 /** Uses the given festival, or falls back to the latest one (most recent start date). */
 async function resolveFestivalId(festivalId?: string) {
   if (festivalId) {
@@ -103,8 +129,7 @@ async function resolveFestivalId(festivalId?: string) {
     return festivalId;
   }
   const latest = await prisma.festival.findFirst({ orderBy: { startDate: 'desc' }, select: { id: true } });
-  if (!latest) throw ApiError.badRequest('Create a festival before adding tickets');
-  return latest.id;
+  return (latest ?? (await createDefaultFestival())).id;
 }
 
 export async function createTicket(data: {

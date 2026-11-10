@@ -20,7 +20,7 @@ const idPrefix = z
   .string()
   .trim()
   .transform((v) => v.toUpperCase())
-  .refine((v) => v === '' || /^[A-Z]{2,10}$/.test(v), 'idPrefix must be 2-10 letters (A-Z)')
+  .refine((v) => v === '' || /^[A-Z]{1,10}$/.test(v), 'idPrefix must be 1-10 letters (A-Z)')
   .transform((v) => v || null)
   .nullable()
   .optional();
