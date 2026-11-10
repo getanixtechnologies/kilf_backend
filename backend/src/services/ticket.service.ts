@@ -27,7 +27,8 @@ const TYPE_PRESETS: Partial<Record<TicketType, Partial<PassRules>>> = {
   DAY_PASS: { requiresDate: true },
   FULL_FESTIVAL: { multiDay: true },
   YOUNG_READER: { multiDay: true },
-  ELITE: { multiDay: true, requiresShowSession: true },
+  // Elite is a full-festival pass: no day of visit or show session to pick.
+  ELITE: { multiDay: true, requiresDate: false, requiresShowSession: false },
   KHASAK_SHOW: { requiresShowSession: true },
   DRAMA: { requiresShowSession: true },
   NEW_YEAR_EVE: { gstRate: 0 },

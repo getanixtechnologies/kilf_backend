@@ -23,7 +23,7 @@ export interface AttendeeInput {
 export interface CreateBookingInput {
   ticketId: string;
   quantity?: number;
-  customer: { name: string; email: string; phone: string };
+  customer: { name: string; email: string; phone?: string };
   attendees?: AttendeeInput[];
 }
 
@@ -203,11 +203,12 @@ async function reserveInventoryAndCreateBooking(rawInput: CreateBookingInput, gu
 
     const customer = await tx.customer.upsert({
       where: { email: input.customer.email.toLowerCase() },
-      update: { name: input.customer.name, phone: input.customer.phone },
+      // Keep a previously saved phone when this booking did not include one.
+      update: { name: input.customer.name, ...(input.customer.phone ? { phone: input.customer.phone } : {}) },
       create: {
         name: input.customer.name,
         email: input.customer.email.toLowerCase(),
-        phone: input.customer.phone,
+        phone: input.customer.phone ?? null,
       },
     });
 

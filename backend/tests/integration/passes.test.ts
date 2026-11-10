@@ -240,7 +240,9 @@ describe('Admin ticket pass rules', () => {
         perks: ['Front-row seating'],
       });
     expect(res.status).toBe(201);
-    expect(res.body.data.requiresShowSession).toBe(true);
+    // Elite is a whole-festival pass: no day of visit or show session.
+    expect(res.body.data.requiresShowSession).toBe(false);
+    expect(res.body.data.requiresDate).toBe(false);
     expect(res.body.data.multiDay).toBe(true);
     expect(Number(res.body.data.gstRate)).toBe(18);
     expect(res.body.data.perks).toEqual(['Front-row seating']);

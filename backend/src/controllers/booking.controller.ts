@@ -94,7 +94,7 @@ export const exportCsv = asyncHandler(async (req: Request, res: Response) => {
     bookingNumber: b.bookingNumber,
     customerName: b.customer.name,
     customerEmail: b.customer.email,
-    customerPhone: b.customer.phone,
+    customerPhone: b.customer.phone ?? '',
     tickets: b.bookingItems.map((i) => `${i.ticket.name} x${i.quantity}`).join('; '),
     quantity: b.quantity,
     totalAmount: b.totalAmount.toString(),

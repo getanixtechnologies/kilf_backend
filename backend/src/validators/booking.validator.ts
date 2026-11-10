@@ -9,7 +9,7 @@ const attendeeSchema = z.object({
   dateOfBirth: z.coerce.date().optional(),
   /** Festival day this ticket is for (Day Pass). */
   validDate: z.coerce.date().optional(),
-  /** Show the attendee is booked into (Khasak show, Elite). */
+  /** Show the attendee is booked into (Khasak show, Drama). */
   showSessionId: z.string().uuid().optional(),
 });
 
@@ -22,7 +22,15 @@ export const createBookingSchema = z.object({
       customer: z.object({
         name: z.string().min(2).max(200),
         email: z.string().email(),
-        phone: z.string().min(6).max(20),
+        /** Optional: guest accounts may have no phone yet. Empty string = not given. */
+        phone: z
+          .string()
+          .trim()
+          .max(20)
+          .optional()
+          .nullable()
+          .transform((v) => (v ? v : undefined))
+          .refine((v) => v === undefined || v.length >= 6, 'Phone must be at least 6 characters'),
       }),
       /** Optional: one entry per ticket. Omitted -> every ticket is in the customer's name. */
       attendees: z.array(attendeeSchema).min(1).max(20, 'Maximum 20 tickets per booking').optional(),

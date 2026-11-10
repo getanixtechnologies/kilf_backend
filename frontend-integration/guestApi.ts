@@ -76,7 +76,7 @@ export interface Booking {
     razorpayPaymentId: string | null;
     paidAt: string | null;
   } | null;
-  customer: { name: string; email: string; phone: string };
+  customer: { name: string; email: string; phone: string | null };
   /** Empty until the booking is CONFIRMED */
   ticketInstances: TicketInstance[];
 }

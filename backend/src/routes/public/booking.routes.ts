@@ -32,11 +32,11 @@ const router = Router();
  *               quantity: { type: integer, minimum: 1 }
  *               customer:
  *                 type: object
- *                 required: [name, email, phone]
+ *                 required: [name, email]
  *                 properties:
  *                   name: { type: string }
  *                   email: { type: string, format: email }
- *                   phone: { type: string }
+ *                   phone: { type: string, nullable: true, description: Optional (min 6 chars when given) }
  *     responses:
  *       201: { description: Booking created }
  *       401: { description: Guest token sent but invalid or expired }

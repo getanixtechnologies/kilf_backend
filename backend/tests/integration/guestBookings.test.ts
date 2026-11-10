@@ -188,3 +188,57 @@ describe('PATCH /api/auth/me', () => {
     expect(res.status).toBe(401);
   });
 });
+
+describe('Elite Pass and optional buyer phone', () => {
+  it('books an Elite Pass created from the admin preset without a date or show session', async () => {
+    const { token } = await (await import('../utils/factories')).createAdmin();
+    const festival = await createFestival();
+    const created = await request(app)
+      .post('/api/admin/tickets')
+      .set(authHeader(token))
+      .send({
+        festivalId: festival.id,
+        name: 'Elite Pass',
+        ticketType: 'ELITE',
+        price: 1500,
+        totalQuantity: 50,
+        salesStart: new Date(Date.now() - 60000).toISOString(),
+        salesEnd: new Date(Date.now() + 86400000).toISOString(),
+      });
+    expect(created.status).toBe(201);
+
+    const res = await request(app)
+      .post('/api/bookings')
+      .send({ ticketId: created.body.data.id, quantity: 1, customer: { name: 'Elite Buyer', email: 'elite@example.com' } });
+    expect(res.status).toBe(201);
+    expect(res.body.data.booking.status).toBe('CONFIRMED');
+  });
+
+  it.each([undefined, null, ''])('accepts a booking with phone=%j and stores null', async (phone) => {
+    const ticket = await setupTicket();
+    const res = await request(app)
+      .post('/api/bookings')
+      .send({ ticketId: ticket.id, quantity: 1, customer: { name: 'No Phone', email: 'nophone@example.com', phone } });
+    expect(res.status).toBe(201);
+    const c = await prisma.customer.findUnique({ where: { email: 'nophone@example.com' } });
+    expect(c?.phone).toBeNull();
+  });
+
+  it('keeps a previously saved phone when a later booking omits it', async () => {
+    const ticket = await setupTicket();
+    await request(app).post('/api/bookings').send({ ticketId: ticket.id, quantity: 1, customer: customer('keep@example.com') });
+    await request(app)
+      .post('/api/bookings')
+      .send({ ticketId: ticket.id, quantity: 1, customer: { name: 'John Doe', email: 'keep@example.com' } });
+    const c = await prisma.customer.findUnique({ where: { email: 'keep@example.com' } });
+    expect(c?.phone).toBe('+919876543210');
+  });
+
+  it('still rejects a phone that is too short', async () => {
+    const ticket = await setupTicket();
+    const res = await request(app)
+      .post('/api/bookings')
+      .send({ ticketId: ticket.id, quantity: 1, customer: { name: 'John Doe', email: 'x@example.com', phone: '123' } });
+    expect(res.status).toBe(400);
+  });
+});
