@@ -28,7 +28,8 @@ export function passRuleDefaults(type: TicketType): PassRuleDefaults {
   return {
     gstRate: type === 'NEW_YEAR_EVE' ? 0 : 18,
     requiresDate: type === 'DAY_PASS',
-    requiresShowSession: type === 'ELITE' || type === 'KHASAK_SHOW' || type === 'DRAMA',
+    // Elite is a whole-festival pass: no festival day or show date to pick.
+    requiresShowSession: type === 'KHASAK_SHOW' || type === 'DRAMA',
     multiDay: type === 'FULL_FESTIVAL' || type === 'YOUNG_READER' || type === 'ELITE',
   };
 }
