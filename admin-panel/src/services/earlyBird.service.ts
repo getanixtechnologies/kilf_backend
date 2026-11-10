@@ -76,3 +76,34 @@ export async function exportEarlyBirdCsv(params: Omit<EarlyBirdListParams, 'page
 export async function deleteEarlyBird(id: string): Promise<void> {
   await api.delete(`/api/admin/early-bird/${id}`);
 }
+
+/** Badge colour per registration type, so types are distinguishable at a glance. */
+export const EARLY_BIRD_TYPE_VARIANT: Record<
+  EarlyBirdType,
+  'default' | 'secondary' | 'success' | 'warning' | 'accent'
+> = {
+  REGISTER: 'default',
+  VOLUNTEER: 'success',
+  EXHIBIT: 'warning',
+  PARTNER: 'default',
+  INFLUENCER: 'accent',
+};
+
+export function earlyBirdTypeLabel(type: EarlyBirdType): string {
+  return EARLY_BIRD_TYPES.find((t) => t.value === type)?.label ?? type;
+}
+
+export function interestLabel(key: string): string {
+  return INTEREST_LABELS[key] ?? key;
+}
+
+export function nameInitials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  const first = parts[0]?.[0] ?? '';
+  const last = parts.length > 1 ? parts[parts.length - 1][0] : '';
+  return (first + last).toUpperCase() || '?';
+}
+
+export function formatIndianPhone(n: string): string {
+  return n.length === 10 ? `+91 ${n.slice(0, 5)} ${n.slice(5)}` : `+91 ${n}`;
+}

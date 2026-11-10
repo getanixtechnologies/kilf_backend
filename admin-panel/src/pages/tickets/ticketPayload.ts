@@ -8,11 +8,11 @@ export function toTicketPayload(values: TicketFormValues): TicketInput {
     festivalId: values.festivalId || undefined,
     salesStart: new Date(values.salesStart).toISOString(),
     salesEnd: new Date(values.salesEnd).toISOString(),
-    perks: (values.perks ?? '')
-      .split('\n')
-      .map((p) => p.replace(/^[\s*•-]+/, '').trim())
+    perks: (values.perks ?? [])
+      .map((p) => p.trim())
       .filter(Boolean),
     minAge: values.minAge === '' ? null : Number(values.minAge),
     maxAge: values.maxAge === '' ? null : Number(values.maxAge),
+    validityDays: values.validityDays === '' ? null : Number(values.validityDays),
   };
 }

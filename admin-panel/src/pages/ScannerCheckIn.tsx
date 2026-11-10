@@ -1,20 +1,29 @@
 import { FormEvent, ReactNode, useCallback, useEffect, useRef, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { CheckCircle2, Loader2, TriangleAlert, XCircle } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, Keyboard, Loader2, QrCode, TriangleAlert, XCircle } from 'lucide-react';
 import { QrScanner } from '@/components/common/QrScanner';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
-import { checkInTicket, VerifyResult, verifyTicket } from '@/services/checkin.service';
+import {
+  checkInTicket,
+  getTicketNumberFormat,
+  VerificationMethod,
+  VerifyResult,
+  verifyTicket,
+} from '@/services/checkin.service';
 import { getApiErrorMessage } from '@/services/api';
+import { useAuth } from '@/hooks/useAuth';
 import { formatDate } from '@/lib/utils';
 
 const AUTO_KEY = 'kilf.scanner.autoCheckIn';
 const DONE_DISMISS_MS = 1500;
 
-type Outcome = 'ok' | 'used' | 'invalid' | 'done';
+type Mode = 'home' | 'scan' | 'manual';
+type Outcome = 'ok' | 'used' | 'invalid' | 'missing' | 'done';
 
 function outcomeOf(r: VerifyResult): Outcome {
+  if (!r.ticket) return 'missing';
   if (!r.valid) return 'invalid';
   return r.alreadyUsed ? 'used' : 'ok';
 }
@@ -35,17 +44,32 @@ function readAuto(): boolean {
   }
 }
 
-/** Full-screen, camera-first check-in for gate staff: scan, see details, one tap to admit. */
+const STYLE = {
+  ok: { box: 'border-success bg-success/10', text: 'text-success', Icon: CheckCircle2, title: 'Valid ticket' },
+  done: { box: 'border-success bg-success/10', text: 'text-success', Icon: CheckCircle2, title: 'Checked in' },
+  used: { box: 'border-amber-500 bg-amber-500/10', text: 'text-amber-700', Icon: TriangleAlert, title: 'Already checked in' },
+  invalid: { box: 'border-destructive bg-destructive/10', text: 'text-destructive', Icon: XCircle, title: 'Not valid' },
+  missing: { box: 'border-destructive bg-destructive/10', text: 'text-destructive', Icon: XCircle, title: 'Ticket not found' },
+};
+
+/** Mobile-first checker dashboard: scan a QR or type the ticket number, see details, one tap to admit. */
 export function ScannerCheckIn() {
+  const { admin } = useAuth();
+  const [mode, setMode] = useState<Mode>('home');
   const [result, setResult] = useState<VerifyResult | null>(null);
   const [outcome, setOutcome] = useState<Outcome | null>(null);
+  const [method, setMethod] = useState<VerificationMethod>('QR');
   const [busy, setBusy] = useState(false);
   const [auto, setAuto] = useState(readAuto);
-  const [manual, setManual] = useState('');
+  const [suffix, setSuffix] = useState('');
   const [count, setCount] = useState(0);
   const dismissTimer = useRef<number>();
+  const suffixRef = useRef<HTMLInputElement>(null);
   // Guards against out-of-order responses when scans arrive back to back.
   const seq = useRef(0);
+
+  const format = useQuery({ queryKey: ['ticket-number-format'], queryFn: getTicketNumberFormat, staleTime: 60 * 60 * 1000 });
+  const prefix = format.data?.prefix ?? '';
 
   const clear = useCallback(() => {
     window.clearTimeout(dismissTimer.current);
@@ -53,22 +77,26 @@ export function ScannerCheckIn() {
     setResult(null);
     setOutcome(null);
     setBusy(false);
-  }, []);
+    if (mode === 'manual') {
+      setSuffix('');
+      window.setTimeout(() => suffixRef.current?.focus(), 0);
+    }
+  }, [mode]);
 
   useEffect(() => () => window.clearTimeout(dismissTimer.current), []);
 
   const admit = useCallback(
-    async (ticketNumber: string, verified: VerifyResult) => {
+    async (ticketNumber: string, verified: VerifyResult, how: VerificationMethod) => {
       const mine = ++seq.current;
       setBusy(true);
       try {
-        await checkInTicket(ticketNumber);
+        await checkInTicket(ticketNumber, how);
         if (mine !== seq.current) return;
         setCount((c) => c + 1);
         setOutcome('done');
         setResult({ ...verified, alreadyUsed: true, message: 'Checked in' });
         buzz(60);
-        dismissTimer.current = window.setTimeout(clear, DONE_DISMISS_MS);
+        if (how === 'QR') dismissTimer.current = window.setTimeout(clear, DONE_DISMISS_MS);
       } catch (err) {
         if (mine !== seq.current) return;
         toast.error(getApiErrorMessage(err, 'Failed to check in ticket'));
@@ -80,23 +108,24 @@ export function ScannerCheckIn() {
     [clear]
   );
 
-  const scan = useCallback(
-    async (raw: string) => {
-      const ticketNumber = raw.trim();
+  const lookup = useCallback(
+    async (raw: string, how: VerificationMethod) => {
+      const ticketNumber = raw.trim().toUpperCase();
       if (!ticketNumber) return;
       const mine = ++seq.current;
+      setMethod(how);
       setBusy(true);
       setResult(null);
       setOutcome(null);
       try {
-        const verified = await verifyTicket(ticketNumber);
+        const verified = await verifyTicket(ticketNumber, how);
         if (mine !== seq.current) return;
         const o = outcomeOf(verified);
         setResult(verified);
         setOutcome(o);
         buzz(o === 'ok' ? 40 : [100, 60, 100]);
-        if (o === 'ok' && auto) {
-          await admit(ticketNumber, verified);
+        if (o === 'ok' && auto && how === 'QR') {
+          await admit(ticketNumber, verified, how);
         } else {
           setBusy(false);
         }
@@ -119,119 +148,216 @@ export function ScannerCheckIn() {
     }
   }
 
+  function fullNumber(typed: string) {
+    const s = typed.trim().toUpperCase();
+    if (!s) return '';
+    // Pasted a whole number: use as is.
+    if (prefix && s.startsWith(prefix)) return s;
+    const digits = format.data?.digits ?? 0;
+    const padded = /^\d+$/.test(s) && s.length < digits ? s.padStart(digits, '0') : s;
+    return `${prefix}${padded}`;
+  }
+
   function handleManual(e: FormEvent) {
     e.preventDefault();
-    scan(manual);
-    setManual('');
+    const n = fullNumber(suffix);
+    if (n) lookup(n, 'MANUAL');
+  }
+
+  function open(next: Mode) {
+    clear();
+    setSuffix('');
+    setMode(next);
   }
 
   const t = result?.ticket;
   const attendee = t?.attendee;
-  const showing = !!result;
-  const style = {
-    ok: { bg: 'bg-success/15 border-success', text: 'text-success', Icon: CheckCircle2, title: 'Valid ticket' },
-    done: { bg: 'bg-success/15 border-success', text: 'text-success', Icon: CheckCircle2, title: 'Checked in' },
-    used: { bg: 'bg-amber-500/15 border-amber-500', text: 'text-amber-600', Icon: TriangleAlert, title: 'Already used' },
-    invalid: { bg: 'bg-destructive/10 border-destructive', text: 'text-destructive', Icon: XCircle, title: 'Not valid' },
-  }[outcome ?? 'invalid'];
+  const style = STYLE[outcome ?? 'invalid'];
 
   return (
-    <div className="mx-auto w-full max-w-md space-y-4">
-      <div className="flex items-center justify-between">
-        <p className="text-sm text-muted-foreground">
-          Checked in this session: <span className="font-semibold text-foreground">{count}</span>
-        </p>
-        <label className="flex items-center gap-2 text-sm">
-          Auto check-in
-          <Switch checked={auto} onCheckedChange={toggleAuto} />
-        </label>
-      </div>
-
-      {/* Camera stays on between scans; decoding pauses while a result is showing. */}
-      <QrScanner autoStart onScan={scan} paused={showing || busy} cooldownMs={1500} />
-
-      {busy && !showing && (
-        <div className="flex items-center justify-center gap-2 py-3 text-sm text-muted-foreground">
-          <Loader2 className="h-4 w-4 animate-spin" /> Checking…
-        </div>
-      )}
-
-      {result && (
-        <div className={`rounded-lg border-2 p-4 ${style.bg}`} role="status" aria-live="polite">
-          <div className="flex items-center gap-3">
-            <style.Icon className={`h-10 w-10 shrink-0 ${style.text}`} />
-            <div className="min-w-0">
-              <p className={`font-serif text-2xl font-bold ${style.text}`}>{style.title}</p>
-              <p className="text-sm">
-                {outcome === 'done'
-                  ? t?.ticketNumber
-                  : outcome === 'used'
-                    ? 'This ticket was already checked in'
-                    : result.message}
-              </p>
-            </div>
+    <div className="mx-auto flex w-full max-w-md flex-col gap-4 pb-6">
+      {mode === 'home' ? (
+        <>
+          <div>
+            <h1 className="text-2xl font-bold text-foreground">Check-in</h1>
+            <p className="text-base text-foreground">Hi {admin?.name?.split(' ')[0]}, choose how to verify a ticket.</p>
+          </div>
+          <BigOption icon={QrCode} title="Scan QR" subtitle="Use the phone camera" onClick={() => open('scan')} />
+          <BigOption
+            icon={Keyboard}
+            title="Enter Booking ID"
+            subtitle={prefix ? `Type the number after ${prefix}` : 'Type the ticket number'}
+            onClick={() => open('manual')}
+            variant="outline"
+          />
+          {count > 0 && (
+            <p className="text-center text-base text-foreground">
+              Checked in this session: <span className="font-bold">{count}</span>
+            </p>
+          )}
+        </>
+      ) : (
+        <>
+          <div className="flex items-center justify-between gap-2">
+            <Button variant="ghost" className="-ml-2 h-12 px-3 text-base" onClick={() => open('home')}>
+              <ArrowLeft className="h-5 w-5" /> Back
+            </Button>
+            <span className="text-base text-foreground">
+              Checked in: <span className="font-bold">{count}</span>
+            </span>
           </div>
 
-          {t && (
-            <div className="mt-4 space-y-2 rounded-md bg-background/70 p-3 text-sm">
-              <Row label="Name" value={attendee?.name || t.booking.customer.name} />
-              <Row label="Ticket" value={t.ticket.name} />
-              {attendee?.showSession && (
-                <Row
-                  label="Show"
-                  value={`${attendee.showSession.name} • ${formatDate(attendee.showSession.startsAt, true)}`}
+          {mode === 'scan' && (
+            <>
+              <label className="flex items-center justify-between rounded-lg border border-border p-3 text-base text-foreground">
+                Check in automatically when valid
+                <Switch checked={auto} onCheckedChange={toggleAuto} />
+              </label>
+              {/* Camera stays on between scans; decoding pauses while a result is showing. */}
+              <QrScanner autoStart onScan={(text) => lookup(text, 'QR')} paused={!!result || busy} cooldownMs={1500} />
+            </>
+          )}
+
+          {mode === 'manual' && !result && (
+            <form onSubmit={handleManual} className="space-y-3">
+              <label htmlFor="ticket-suffix" className="block text-base font-medium text-foreground">
+                Booking / ticket ID
+              </label>
+              <div className="flex h-16 items-stretch overflow-hidden rounded-lg border-2 border-input bg-background focus-within:border-primary">
+                <span className="flex select-none items-center border-r border-input bg-secondary px-3 font-mono text-xl font-semibold text-foreground">
+                  {prefix || '…'}
+                </span>
+                <input
+                  id="ticket-suffix"
+                  ref={suffixRef}
+                  autoFocus
+                  value={suffix}
+                  onChange={(e) => setSuffix(e.target.value.replace(/\s+/g, ''))}
+                  inputMode="numeric"
+                  autoComplete="off"
+                  autoCapitalize="characters"
+                  placeholder="000123"
+                  aria-label={`Ticket number after ${prefix}`}
+                  className="min-w-0 flex-1 bg-transparent px-3 font-mono text-2xl text-foreground outline-none placeholder:text-foreground/30"
                 />
-              )}
-              {attendee?.validDate && <Row label="Valid on" value={formatDate(attendee.validDate)} />}
-              <Row label="Booked by" value={t.booking.customer.name} />
-              <Row label="Ticket #" value={<span className="font-mono">{t.ticketNumber}</span>} />
-              {t.checkedInAt && outcome === 'used' && (
-                <Row label="Checked in at" value={formatDate(t.checkedInAt, true)} />
-              )}
+              </div>
+              <Button type="submit" className="h-14 w-full text-lg" disabled={!suffix.trim() || format.isLoading} loading={busy}>
+                Verify
+              </Button>
+            </form>
+          )}
+
+          {busy && !result && mode === 'scan' && (
+            <div className="flex items-center justify-center gap-2 py-3 text-base text-foreground">
+              <Loader2 className="h-5 w-5 animate-spin" /> Checking…
             </div>
           )}
 
-          <div className="mt-4 grid grid-cols-2 gap-2">
-            {outcome === 'ok' && t ? (
-              <Button size="lg" className="h-12 text-base" loading={busy} onClick={() => admit(t.ticketNumber, result)}>
-                Check in
-              </Button>
-            ) : (
-              <span />
-            )}
-            <Button
-              size="lg"
-              variant="outline"
-              className={`h-12 text-base ${outcome === 'ok' && t ? '' : 'col-span-2'}`}
-              onClick={clear}
-            >
-              Next scan
-            </Button>
-          </div>
-        </div>
-      )}
+          {result && (
+            <div className={`rounded-xl border-2 p-4 ${style.box}`} role="status" aria-live="polite">
+              <div className="flex items-center gap-3">
+                <style.Icon className={`h-12 w-12 shrink-0 ${style.text}`} />
+                <div className="min-w-0">
+                  <p className={`text-2xl font-bold ${style.text}`}>
+                    {outcome === 'invalid' && result.code === 'EXPIRED'
+                      ? 'Ticket expired'
+                      : outcome === 'invalid' && result.code === 'INVALID_DATE'
+                        ? 'Invalid date'
+                        : style.title}
+                  </p>
+                  <p className="break-words text-base text-foreground">
+                    {outcome === 'done' || outcome === 'ok' ? t?.ticketNumber : result.message}
+                  </p>
+                </div>
+              </div>
 
-      <form onSubmit={handleManual} className="flex gap-2">
-        <Input
-          value={manual}
-          onChange={(e) => setManual(e.target.value)}
-          placeholder="Or type ticket number"
-          autoComplete="off"
-          className="h-11 font-mono"
-        />
-        <Button type="submit" variant="outline" className="h-11" disabled={!manual.trim()}>
-          Verify
-        </Button>
-      </form>
+              {t && (
+                <div className="mt-4 space-y-2 rounded-lg bg-background p-3 text-base">
+                  <Row label="Name" value={attendee?.name || t.booking.customer.name} />
+                  <Row label="Ticket" value={t.ticket.name} />
+                  {attendee?.showSession && (
+                    <Row label="Show" value={`${attendee.showSession.name} • ${formatDate(attendee.showSession.startsAt, true)}`} />
+                  )}
+                  {result.validFrom && result.validUntil && (
+                    <Row
+                      label="Valid"
+                      value={
+                        result.validFrom === result.validUntil
+                          ? formatDate(result.validFrom)
+                          : `${formatDate(result.validFrom)} – ${formatDate(result.validUntil)}`
+                      }
+                    />
+                  )}
+                  <Row label="Booking" value={<span className="font-mono">{t.booking.bookingNumber}</span>} />
+                  <Row label="Ticket #" value={<span className="font-mono">{t.ticketNumber}</span>} />
+                  <Row label="Status" value={outcome === 'done' ? 'Checked in' : statusLabel(t.status, result)} />
+                  {t.checkedInAt && outcome === 'used' && <Row label="Checked in at" value={formatDate(t.checkedInAt, true)} />}
+                </div>
+              )}
+
+              <div className="mt-4 flex flex-col gap-2">
+                {outcome === 'ok' && t && (
+                  <Button className="h-14 text-lg" loading={busy} onClick={() => admit(t.ticketNumber, result, method)}>
+                    <CheckCircle2 className="h-5 w-5" /> Confirm check-in
+                  </Button>
+                )}
+                <Button variant="outline" className="h-14 bg-background text-lg" onClick={clear}>
+                  {mode === 'scan' ? 'Scan next' : 'Enter another'}
+                </Button>
+              </div>
+            </div>
+          )}
+        </>
+      )}
     </div>
+  );
+}
+
+function statusLabel(status: string, r: VerifyResult) {
+  if (r.alreadyUsed) return 'Already checked in';
+  if (status === 'CANCELLED') return 'Cancelled';
+  if (!r.valid) return 'Not valid';
+  return 'Not checked in yet';
+}
+
+function BigOption({
+  icon: Icon,
+  title,
+  subtitle,
+  onClick,
+  variant = 'default',
+}: {
+  icon: typeof QrCode;
+  title: string;
+  subtitle: string;
+  onClick: () => void;
+  variant?: 'default' | 'outline';
+}) {
+  const solid = variant === 'default';
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`flex min-h-[7rem] w-full items-center gap-4 rounded-xl border-2 p-5 text-left transition-colors active:scale-[0.99] ${
+        solid
+          ? 'border-primary bg-primary text-primary-foreground hover:bg-primary/90'
+          : 'border-primary bg-background text-foreground hover:bg-primary/5'
+      }`}
+    >
+      <Icon className={`h-12 w-12 shrink-0 ${solid ? '' : 'text-primary'}`} />
+      <span>
+        <span className="block text-2xl font-bold">{title}</span>
+        <span className="block text-base">{subtitle}</span>
+      </span>
+    </button>
   );
 }
 
 function Row({ label, value }: { label: string; value: ReactNode }) {
   return (
     <div className="flex items-start justify-between gap-3">
-      <span className="shrink-0 text-muted-foreground">{label}</span>
-      <span className="min-w-0 break-words text-right font-medium">{value}</span>
+      <span className="shrink-0 text-foreground/80">{label}</span>
+      <span className="min-w-0 break-words text-right font-semibold text-foreground">{value}</span>
     </div>
   );
 }

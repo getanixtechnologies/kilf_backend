@@ -8,6 +8,8 @@ export interface Admin {
   isActive: boolean;
   lastLoginAt: string | null;
   createdAt: string;
+  /** Signed in with a temporary password that must be replaced first. */
+  mustChangePassword?: boolean;
 }
 
 export type FestivalStatus = 'DRAFT' | 'PUBLISHED' | 'CANCELLED' | 'COMPLETED';
@@ -39,6 +41,7 @@ export type TicketType =
   | 'YOUNG_READER'
   | 'ELITE'
   | 'KHASAK_SHOW'
+  | 'DRAMA'
   | 'NEW_YEAR_EVE';
 export type TicketSaleStatus = 'ACTIVE' | 'INACTIVE';
 
@@ -62,6 +65,8 @@ export interface Ticket {
   maxAge?: number | null;
   multiDay?: boolean;
   perks?: string[];
+  validityDays?: number | null;
+  allowReentry?: boolean;
   createdAt: string;
   updatedAt: string;
   ticketsSold?: number;

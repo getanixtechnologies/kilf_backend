@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { Download, Sparkles, Trash2 } from 'lucide-react';
+import { ChevronRight, Download, MapPin, MessageCircle, Sparkles, Trash2 } from 'lucide-react';
 import { PageHeader } from '@/components/common/PageHeader';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -18,18 +18,25 @@ import { formatDate } from '@/lib/utils';
 import {
   AGE_GROUPS,
   EARLY_BIRD_TYPES,
+  EARLY_BIRD_TYPE_VARIANT,
   EarlyBirdType,
   INTEREST_LABELS,
   deleteEarlyBird,
+  earlyBirdTypeLabel,
   exportEarlyBirdCsv,
+  formatIndianPhone,
+  interestLabel,
   listEarlyBird,
+  nameInitials,
 } from '@/services/earlyBird.service';
 
 const FILTER_KEYS = ['search', 'type', 'age', 'interest'] as const;
+const VISIBLE_INTERESTS = 2;
 
 export default function EarlyBirdListPage() {
   const { admin } = useAuth();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const { page, get, setFilter, setPage, hasFilters, clearFilters } = useListParams(FILTER_KEYS);
   const [exporting, setExporting] = useState(false);
 
@@ -68,6 +75,7 @@ export default function EarlyBirdListPage() {
   }
 
   const canDelete = admin?.role === 'SUPER_ADMIN';
+  const stop = (e: React.SyntheticEvent) => e.stopPropagation();
 
   return (
     <div>
@@ -135,69 +143,107 @@ export default function EarlyBirdListPage() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Contact</TableHead>
+              <TableHead>Person</TableHead>
+              <TableHead>WhatsApp</TableHead>
               <TableHead>Type</TableHead>
-              <TableHead>Age</TableHead>
-              <TableHead>Interests</TableHead>
+              <TableHead className="hidden lg:table-cell">Age</TableHead>
+              <TableHead className="hidden md:table-cell">Interests</TableHead>
               <TableHead>Registered</TableHead>
-              {canDelete && <TableHead className="w-10" />}
+              <TableHead className="w-10" />
             </TableRow>
           </TableHeader>
           <TableBody>
             {data?.data.map((r) => (
-              <TableRow key={r.id}>
+              <TableRow key={r.id} className="cursor-pointer" onClick={() => navigate(`/early-bird/${r.id}`)}>
                 <TableCell>
-                  <Link to={`/early-bird/${r.id}`} className="font-medium text-primary hover:underline">
-                    {r.name}
-                  </Link>
-                  <p className="text-xs text-muted-foreground">{r.townOrCity}</p>
-                </TableCell>
-                <TableCell className="whitespace-nowrap">
-                  <a href={`https://wa.me/91${r.whatsappNumber}`} target="_blank" rel="noreferrer" className="hover:underline">
-                    +91 {r.whatsappNumber}
-                  </a>
-                  {r.email && <p className="text-xs text-muted-foreground">{r.email}</p>}
-                </TableCell>
-                <TableCell>
-                  <Badge variant="accent">
-                    {EARLY_BIRD_TYPES.find((t) => t.value === r.interestType)?.label ?? r.interestType}
-                  </Badge>
-                </TableCell>
-                <TableCell className="whitespace-nowrap">{r.ageGroup}</TableCell>
-                <TableCell className="max-w-xs">
-                  <div className="flex flex-wrap gap-1">
-                    {r.interests.length === 0 && <span className="text-muted-foreground">—</span>}
-                    {r.interests.map((i) => (
-                      <Badge key={i} variant="outline">
-                        {INTEREST_LABELS[i] ?? i}
-                      </Badge>
-                    ))}
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary">
+                      {nameInitials(r.name)}
+                    </div>
+                    <div className="min-w-0">
+                      <Link
+                        to={`/early-bird/${r.id}`}
+                        onClick={stop}
+                        className="block truncate font-medium hover:text-primary hover:underline"
+                      >
+                        {r.name}
+                      </Link>
+                      <p className="flex items-center gap-1 truncate text-xs text-foreground">
+                        <MapPin className="h-3 w-3 shrink-0 text-primary" />
+                        {r.townOrCity}
+                      </p>
+                    </div>
                   </div>
                 </TableCell>
-                <TableCell className="whitespace-nowrap text-muted-foreground">{formatDate(r.createdAt, true)}</TableCell>
-                {canDelete && (
-                  <TableCell>
-                    <ConfirmDialog
-                      trigger={
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          title="Delete registration"
-                          aria-label={`Delete registration from ${r.name}`}
-                          className="text-destructive hover:text-destructive"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      }
-                      title="Delete registration?"
-                      description={`This permanently removes the registration from ${r.name}.`}
-                      confirmLabel="Delete"
-                      variant="destructive"
-                      onConfirm={() => handleDelete(r.id)}
-                    />
-                  </TableCell>
-                )}
+                <TableCell className="whitespace-nowrap">
+                  <a
+                    href={`https://wa.me/91${r.whatsappNumber}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    onClick={stop}
+                    title="Open in WhatsApp"
+                    className="inline-flex items-center gap-1.5 tabular-nums hover:text-primary hover:underline"
+                  >
+                    <MessageCircle className="h-3.5 w-3.5 text-success" />
+                    {formatIndianPhone(r.whatsappNumber)}
+                  </a>
+                </TableCell>
+                <TableCell>
+                  <Badge variant={EARLY_BIRD_TYPE_VARIANT[r.interestType] ?? 'default'}>
+                    {earlyBirdTypeLabel(r.interestType)}
+                  </Badge>
+                </TableCell>
+                <TableCell className="hidden whitespace-nowrap lg:table-cell">{r.ageGroup}</TableCell>
+                <TableCell className="hidden md:table-cell">
+                  {r.interests.length === 0 ? (
+                    <span className="text-foreground">—</span>
+                  ) : (
+                    <div
+                      className="flex max-w-[17rem] flex-wrap items-center gap-1"
+                      title={r.interests.map(interestLabel).join(', ')}
+                    >
+                      {r.interests.slice(0, VISIBLE_INTERESTS).map((i) => (
+                        <Badge key={i} variant="outline" className="max-w-[9rem] truncate border-primary/40 font-normal text-primary">
+                          {interestLabel(i)}
+                        </Badge>
+                      ))}
+                      {r.interests.length > VISIBLE_INTERESTS && (
+                        <span className="text-xs font-medium text-foreground">
+                          +{r.interests.length - VISIBLE_INTERESTS} more
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </TableCell>
+                <TableCell className="whitespace-nowrap text-sm text-foreground" title={formatDate(r.createdAt, true)}>
+                  {formatDate(r.createdAt)}
+                </TableCell>
+                <TableCell onClick={stop}>
+                  <div className="flex items-center justify-end">
+                    {canDelete ? (
+                      <ConfirmDialog
+                        trigger={
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            title="Delete registration"
+                            aria-label={`Delete registration from ${r.name}`}
+                            className="text-destructive hover:text-destructive"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        }
+                        title="Delete registration?"
+                        description={`This permanently removes the registration from ${r.name}.`}
+                        confirmLabel="Delete"
+                        variant="destructive"
+                        onConfirm={() => handleDelete(r.id)}
+                      />
+                    ) : (
+                      <ChevronRight className="h-4 w-4 text-primary" />
+                    )}
+                  </div>
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>

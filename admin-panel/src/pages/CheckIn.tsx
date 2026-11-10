@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { StatusBadge } from '@/components/common/StatusBadge';
 import { ProgressBar } from '@/components/common/ProgressBar';
-import { checkInTicket, VerifyResult, verifyTicket } from '@/services/checkin.service';
+import { checkInTicket, getTicketNumberFormat, VerificationMethod, VerifyResult, verifyTicket } from '@/services/checkin.service';
 import { getApiErrorMessage } from '@/services/api';
 import { formatDate, formatNumber } from '@/lib/utils';
 import { getDashboardStats } from '@/services/revenue.service';
@@ -26,6 +26,7 @@ function AdminCheckInPage() {
   const [ticketNumber, setTicketNumber] = useState('');
   const [result, setResult] = useState<VerifyResult | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const lastMethod = useRef<VerificationMethod>('MANUAL');
   const queryClient = useQueryClient();
   // Gate-staff (SCANNER) accounts can't read dashboard stats.
   const isScanner = useAuth().admin?.role === 'SCANNER';
@@ -35,11 +36,14 @@ function AdminCheckInPage() {
     refetchInterval: 15000,
     enabled: !isScanner,
   });
+  const numberFormat = useQuery({ queryKey: ['ticket-number-format'], queryFn: getTicketNumberFormat, staleTime: 3600000 });
   const refreshStats = () => queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
 
   const verifyMutation = useMutation({
-    mutationFn: verifyTicket,
-    onSuccess: (data) => {
+    mutationFn: ({ ticketNumber, method }: { ticketNumber: string; method: VerificationMethod }) =>
+      verifyTicket(ticketNumber, method),
+    onSuccess: (data, vars) => {
+      lastMethod.current = vars.method;
       setResult(data);
       // Rejected tickets leave the number selected so the next scan replaces it.
       if (!data.valid || data.alreadyUsed) inputRef.current?.select();
@@ -52,7 +56,7 @@ function AdminCheckInPage() {
   });
 
   const checkInMutation = useMutation({
-    mutationFn: checkInTicket,
+    mutationFn: (n: string) => checkInTicket(n, lastMethod.current),
     onSuccess: async () => {
       toast.success('Attendee checked in');
       refreshStats();
@@ -68,14 +72,14 @@ function AdminCheckInPage() {
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
     if (!ticketNumber.trim()) return;
-    verifyMutation.mutate(ticketNumber.trim());
+    verifyMutation.mutate({ ticketNumber: ticketNumber.trim(), method: 'MANUAL' });
   }
 
   function handleCameraScan(text: string) {
     const scanned = text.trim();
     if (!scanned) return;
     setTicketNumber(scanned);
-    verifyMutation.mutate(scanned);
+    verifyMutation.mutate({ ticketNumber: scanned, method: 'QR' });
   }
 
   function reset() {
@@ -103,7 +107,7 @@ function AdminCheckInPage() {
                     ref={inputRef}
                     autoFocus
                     autoComplete="off"
-                    placeholder="LF-2026-000123"
+                    placeholder={numberFormat.data?.example ?? 'Ticket number'}
                     className="h-11 font-mono"
                     value={ticketNumber}
                     onChange={(e) => setTicketNumber(e.target.value)}
@@ -130,6 +134,7 @@ function AdminCheckInPage() {
                   )}
                   <div className="min-w-0">
                     <p className="font-serif text-lg font-semibold">{result.message}</p>
+                    {result.detail && <p className="text-sm text-muted-foreground">{result.detail}</p>}
                     {result.ticket && <p className="font-mono text-xs text-muted-foreground">{result.ticket.ticketNumber}</p>}
                   </div>
                 </div>

@@ -9,6 +9,7 @@ interface AuthContextValue {
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
+  changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
   refreshProfile: () => Promise<void>;
 }
 
@@ -45,6 +46,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setAdmin(loggedInAdmin);
   }
 
+  async function changePassword(currentPassword: string, newPassword: string) {
+    const session = await authService.changePassword(currentPassword, newPassword);
+    tokenStorage.setTokens(session.token, session.refreshToken);
+    setAdmin(session.admin);
+  }
+
   async function logout() {
     try {
       await authService.logout();
@@ -56,7 +63,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ admin, isLoading, isAuthenticated: !!admin, login, logout, refreshProfile: loadProfile }}
+      value={{ admin, isLoading, isAuthenticated: !!admin, login, logout, changePassword, refreshProfile: loadProfile }}
     >
       {children}
     </AuthContext.Provider>

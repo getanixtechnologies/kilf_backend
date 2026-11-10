@@ -37,6 +37,8 @@ export interface TicketInput {
   maxAge?: number | null;
   multiDay?: boolean;
   perks?: string[];
+  validityDays?: number | null;
+  allowReentry?: boolean;
 }
 
 export async function createTicket(input: TicketInput): Promise<Ticket> {

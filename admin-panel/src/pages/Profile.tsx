@@ -10,7 +10,6 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/hooks/useAuth';
-import * as authService from '@/services/auth.service';
 import { getApiErrorMessage } from '@/services/api';
 import { formatDate } from '@/lib/utils';
 
@@ -28,7 +27,7 @@ const passwordSchema = z
 type PasswordForm = z.infer<typeof passwordSchema>;
 
 export default function ProfilePage() {
-  const { admin } = useAuth();
+  const { admin, changePassword } = useAuth();
   const {
     register,
     handleSubmit,
@@ -38,7 +37,7 @@ export default function ProfilePage() {
 
   async function onSubmit(values: PasswordForm) {
     try {
-      await authService.changePassword(values.currentPassword, values.newPassword);
+      await changePassword(values.currentPassword, values.newPassword);
       toast.success('Password changed successfully');
       reset();
     } catch (err) {

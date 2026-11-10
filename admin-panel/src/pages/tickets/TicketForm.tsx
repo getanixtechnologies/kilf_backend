@@ -3,23 +3,26 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { useQuery } from '@tanstack/react-query';
 import { Ticket, TicketType } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card } from '@/components/ui/card';
 import { Field, FormActions, FormSection } from '@/components/common/FormLayout';
 import { getApiErrorMessage } from '@/services/api';
-import { listFestivals } from '@/services/festival.service';
+import { PerksInput } from './PerksInput';
 import { TICKET_TYPES, TICKET_TYPE_OPTIONS, passRuleDefaults } from '@/lib/ticketTypes';
 
 const optionalAge = z
   .string()
   .trim()
   .refine((v) => v === '' || (/^\d+$/.test(v) && Number(v) <= 120), 'Enter an age from 0 to 120');
+
+const optionalDays = z
+  .string()
+  .trim()
+  .refine((v) => v === '' || (/^\d+$/.test(v) && Number(v) >= 1 && Number(v) <= 60), 'Enter 1 to 60 days');
 
 const ticketSchema = z
   .object({
@@ -33,12 +36,14 @@ const ticketSchema = z
     salesStart: z.string().min(1, 'Sales start date is required'),
     salesEnd: z.string().min(1, 'Sales end date is required'),
     status: z.enum(['ACTIVE', 'INACTIVE']),
-    perks: z.string().optional(),
+    perks: z.array(z.string()).optional(),
     multiDay: z.boolean(),
     requiresDate: z.boolean(),
     requiresShowSession: z.boolean(),
     minAge: optionalAge,
     maxAge: optionalAge,
+    validityDays: optionalDays,
+    allowReentry: z.boolean(),
   })
   .refine((d) => new Date(d.salesEnd) > new Date(d.salesStart), {
     message: 'Sales end must be after sales start',
@@ -69,18 +74,15 @@ interface TicketFormProps {
   submitLabel: string;
 }
 
-const RULE_SWITCHES: { name: 'multiDay' | 'requiresDate' | 'requiresShowSession'; label: string; hint: string }[] = [
+const RULE_SWITCHES: { name: 'multiDay' | 'requiresDate' | 'requiresShowSession' | 'allowReentry'; label: string; hint: string }[] = [
   { name: 'multiDay', label: 'Valid on every festival day', hint: 'Checked in once per day instead of once.' },
   { name: 'requiresDate', label: 'Buyer picks a festival day', hint: 'For single-day passes.' },
   { name: 'requiresShowSession', label: 'Buyer picks a show date', hint: 'For Khasak show seats.' },
+  { name: 'allowReentry', label: 'Allow re-entry', hint: 'Can be scanned in more than once on the same day.' },
 ];
 
 export function TicketForm({ defaultValues, fixedFestivalId, onSubmit, submitLabel }: TicketFormProps) {
   const navigate = useNavigate();
-  const { data: festivalsData } = useQuery({
-    queryKey: ['festivals-all'],
-    queryFn: () => listFestivals({ page: 1, limit: 100 }),
-  });
 
   const initialType: TicketType = defaultValues?.ticketType ?? 'FULL_FESTIVAL';
   const presets = passRuleDefaults(initialType);
@@ -104,12 +106,14 @@ export function TicketForm({ defaultValues, fixedFestivalId, onSubmit, submitLab
       salesStart: toInputDateTime(defaultValues?.salesStart) || toInputDateTime(new Date().toISOString()),
       salesEnd: toInputDateTime(defaultValues?.salesEnd),
       status: defaultValues?.status ?? 'ACTIVE',
-      perks: (defaultValues?.perks ?? []).join('\n'),
+      perks: defaultValues?.perks?.length ? defaultValues.perks : [''],
       multiDay: defaultValues?.multiDay ?? presets.multiDay,
       requiresDate: defaultValues?.requiresDate ?? presets.requiresDate,
       requiresShowSession: defaultValues?.requiresShowSession ?? presets.requiresShowSession,
       minAge: defaultValues?.minAge != null ? String(defaultValues.minAge) : '',
       maxAge: defaultValues?.maxAge != null ? String(defaultValues.maxAge) : '',
+      validityDays: defaultValues?.validityDays != null ? String(defaultValues.validityDays) : '',
+      allowReentry: defaultValues?.allowReentry ?? false,
     },
   });
 
@@ -135,27 +139,6 @@ export function TicketForm({ defaultValues, fixedFestivalId, onSubmit, submitLab
     <Card>
       <form onSubmit={handleSubmit(handleFormSubmit)}>
         <FormSection title="Ticket details" description="What customers see when they choose a ticket.">
-          <Field label="Festival" wide error={errors.festivalId?.message}>
-            <Controller
-              control={control}
-              name="festivalId"
-              render={({ field }) => (
-                <Select value={field.value} onValueChange={field.onChange} disabled={!!fixedFestivalId}>
-                  <SelectTrigger aria-label="Festival">
-                    <SelectValue placeholder="Latest festival (default)" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {festivalsData?.data.map((f) => (
-                      <SelectItem key={f.id} value={f.id}>
-                        {f.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-            />
-          </Field>
-
           <Field label="Ticket name" htmlFor="name" required error={errors.name?.message}>
             <Input id="name" placeholder="Festival Pass" {...register('name')} />
           </Field>
@@ -181,21 +164,22 @@ export function TicketForm({ defaultValues, fixedFestivalId, onSubmit, submitLab
             />
           </Field>
 
-          <Field label="Description" htmlFor="description" wide>
-            <Textarea id="description" rows={3} placeholder="Access to all 5 days of the festival." {...register('description')} />
-          </Field>
-
           <Field
             label="What's included"
             htmlFor="perks"
             wide
-            hint="One per line, shown to buyers as a list."
+            hint="Shown to buyers as a list. Press Enter to add the next point."
           >
-            <Textarea
-              id="perks"
-              rows={5}
-              placeholder={'Front-row seating at main-stage sessions\nPriority entry at both venues'}
-              {...register('perks')}
+            <Controller
+              control={control}
+              name="perks"
+              render={({ field }) => (
+                <PerksInput
+                  value={field.value ?? []}
+                  onChange={field.onChange}
+                  placeholders={['Front-row seating at main-stage sessions', 'Priority entry at both venues']}
+                />
+              )}
             />
           </Field>
         </FormSection>
@@ -224,6 +208,14 @@ export function TicketForm({ defaultValues, fixedFestivalId, onSubmit, submitLab
               />
             </Field>
           ))}
+          <Field
+            label="Validity (event days)"
+            htmlFor="validityDays"
+            hint="Days of entry from the festival's first day (or the chosen day). Blank = 1 day, or every day if valid on every festival day."
+            error={errors.validityDays?.message}
+          >
+            <Input id="validityDays" type="number" min="1" max="60" {...register('validityDays')} />
+          </Field>
           <Field label="Min age" htmlFor="minAge" hint="Leave blank for no limit." error={errors.minAge?.message}>
             <Input id="minAge" type="number" min="0" max="120" {...register('minAge')} />
           </Field>

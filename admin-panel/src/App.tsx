@@ -22,6 +22,9 @@ import CheckInPage from '@/pages/CheckIn';
 import ProfilePage from '@/pages/Profile';
 import SettingsPage from '@/pages/Settings';
 import NotFoundPage from '@/pages/NotFound';
+import ChangePasswordPage from '@/pages/ChangePassword';
+import CheckersPage from '@/pages/checkers/Checkers';
+import VerificationLogsPage from '@/pages/checkers/VerificationLogs';
 
 /** Lands each role on its home screen: gate staff go straight to scanning. */
 function RoleHome() {
@@ -57,6 +60,8 @@ export default function App() {
 
           <Route path="/revenue" element={<RevenuePage />} />
           <Route path="/check-in" element={<CheckInPage />} />
+          <Route path="/checkers" element={<CheckersPage />} />
+          <Route path="/verification-logs" element={<VerificationLogsPage />} />
 
           <Route path="/admin/profile" element={<ProfilePage />} />
           <Route path="/admin/settings" element={<SettingsPage />} />
@@ -65,6 +70,7 @@ export default function App() {
 
       <Route element={<ProtectedRoute />}>
         <Route path="/" element={<RoleHome />} />
+        <Route path="/change-password" element={<ChangePasswordPage />} />
       </Route>
       <Route path="*" element={<NotFoundPage />} />
     </Routes>
