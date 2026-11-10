@@ -6,6 +6,7 @@ import {
   confirmPaymentSchema,
   createBookingSchema,
   publicBookingLookupSchema,
+  bookingQuoteSchema,
 } from '../../validators/booking.validator';
 
 const router = Router();
@@ -22,7 +23,7 @@ const router = Router();
  *         application/json:
  *           schema:
  *             type: object
- *             required: [ticketId, quantity, customer]
+ *             required: [ticketId, customer]
  *             properties:
  *               ticketId: { type: string, format: uuid }
  *               quantity: { type: integer, minimum: 1 }
@@ -38,6 +39,28 @@ const router = Router();
  *       409: { description: Not enough tickets available }
  */
 router.post('/', bookingLimiter, validate(createBookingSchema), bookingController.create);
+
+/**
+ * @openapi
+ * /api/bookings/quote:
+ *   post:
+ *     tags: [Public Bookings]
+ *     summary: Calculate the price for a quantity of a ticket (subtotal, GST, total)
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [ticketId, quantity]
+ *             properties:
+ *               ticketId: { type: string, format: uuid }
+ *               quantity: { type: integer, minimum: 1, maximum: 20 }
+ *     responses:
+ *       200: { description: Price calculated }
+ *       404: { description: Ticket not found }
+ */
+router.post('/quote', validate(bookingQuoteSchema), bookingController.quote);
 
 /**
  * @openapi

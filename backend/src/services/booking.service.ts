@@ -24,7 +24,7 @@ export interface CreateBookingInput {
   ticketId: string;
   quantity?: number;
   customer: { name: string; email: string; phone: string };
-  attendees: AttendeeInput[];
+  attendees?: AttendeeInput[];
 }
 
 // Tickets are priced in rupees only; bookings and payments carry the currency for the gateway.
@@ -35,6 +35,28 @@ const MAX_BOOKING_NUMBER_RETRIES = 5;
 /** GST is charged on top of the ticket price and rounded to paise. */
 function gstOn(subtotal: Prisma.Decimal, ratePercent: Prisma.Decimal) {
   return subtotal.mul(ratePercent).div(100).toDecimalPlaces(2);
+}
+
+/** Price breakdown for `quantity` of a ticket, GST added on top (same maths as booking creation). */
+export async function quoteBooking(ticketId: string, quantity: number) {
+  const ticket = await prisma.ticket.findUnique({ where: { id: ticketId } });
+  if (!ticket) throw ApiError.notFound('Ticket not found');
+
+  const subtotal = ticket.price.mul(quantity);
+  const gstAmount = gstOn(subtotal, ticket.gstRate);
+  return {
+    ticketId: ticket.id,
+    ticketName: ticket.name,
+    quantity,
+    unitPrice: ticket.price,
+    gstRate: ticket.gstRate,
+    subtotalAmount: subtotal,
+    gstAmount,
+    totalAmount: subtotal.add(gstAmount),
+    currency: DEFAULT_CURRENCY,
+    availableQuantity: ticket.availableQuantity,
+    isAvailable: ticket.status === 'ACTIVE' && ticket.availableQuantity >= quantity,
+  };
 }
 
 /**
@@ -129,7 +151,18 @@ async function reserveShowSeats(
  * go negative. The subsequent conditional `updateMany` (WHERE availableQuantity
  * >= quantity) is a defense-in-depth atomic guard against overselling.
  */
-async function reserveInventoryAndCreateBooking(input: CreateBookingInput) {
+async function reserveInventoryAndCreateBooking(rawInput: CreateBookingInput) {
+  // No attendee list: every ticket is issued in the customer's name.
+  const input = {
+    ...rawInput,
+    attendees:
+      rawInput.attendees ??
+      Array.from({ length: rawInput.quantity ?? 1 }, () => ({
+        name: rawInput.customer.name,
+        email: rawInput.customer.email,
+        phone: rawInput.customer.phone,
+      })),
+  };
   const quantity = input.attendees.length;
 
   return prisma.$transaction(async (tx) => {

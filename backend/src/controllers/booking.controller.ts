@@ -34,6 +34,11 @@ export const create = asyncHandler(async (req: Request, res: Response) => {
   );
 });
 
+export const quote = asyncHandler(async (req: Request, res: Response) => {
+  const result = await bookingService.quoteBooking(req.body.ticketId, Number(req.body.quantity));
+  return sendSuccess(res, result, 'Price calculated');
+});
+
 export const confirmPayment = asyncHandler(async (req: Request, res: Response) => {
   const booking = await bookingService.confirmPaymentByBookingNumber(req.params.bookingNumber);
   return sendSuccess(res, booking, 'Payment status verified');
