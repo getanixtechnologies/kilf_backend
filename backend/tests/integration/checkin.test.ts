@@ -5,9 +5,15 @@ import { createAdmin, createFestival, createTicket, authHeader, attendees } from
 
 const app = createApp();
 
+// Check-in only admits tickets on festival days, so these festivals run today.
+const runningToday = () => ({
+  startDate: new Date(),
+  endDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
+});
+
 describe('Ticket verification / check-in', () => {
   async function bookOneTicket() {
-    const festival = await createFestival();
+    const festival = await createFestival(runningToday());
     const ticket = await createTicket(festival.id, { totalQuantity: 5, availableQuantity: 5 });
     const bookingRes = await request(app)
       .post('/api/bookings')
@@ -74,7 +80,7 @@ describe('Ticket verification / check-in', () => {
 
 describe('Scanner (gate staff) accounts', () => {
   async function bookOneTicket() {
-    const festival = await createFestival();
+    const festival = await createFestival(runningToday());
     const ticket = await createTicket(festival.id, { totalQuantity: 5, availableQuantity: 5 });
     const res = await request(app)
       .post('/api/bookings')
@@ -135,18 +141,19 @@ describe('Scanner (gate staff) accounts', () => {
     expect(res.body.data.role).toBe('SCANNER');
   });
 
-  it('lets only a super admin create scanners, who can then log in', async () => {
-    const { token: adminToken } = await createAdmin({ role: 'ADMIN' });
+  it('lets admins (not scanners) create scanners, who can then log in', async () => {
+    const { token: scannerToken } = await createAdmin({ role: 'SCANNER' });
     const { token: superToken } = await createAdmin({ role: 'SUPER_ADMIN' });
     const body = { name: 'Gate One', email: `gate1.${Date.now()}@kilf.dev`, password: 'GatePass@123' };
 
-    const denied = await request(app).post('/api/admin/scanners').set(authHeader(adminToken)).send(body);
+    const denied = await request(app).post('/api/admin/scanners').set(authHeader(scannerToken)).send(body);
     expect(denied.status).toBe(403);
 
     const created = await request(app).post('/api/admin/scanners').set(authHeader(superToken)).send(body);
     expect(created.status).toBe(201);
-    expect(created.body.data.role).toBe('SCANNER');
-    expect(created.body.data.passwordHash).toBeUndefined();
+    expect(created.body.data.scanner.role).toBe('SCANNER');
+    expect(created.body.data.scanner.passwordHash).toBeUndefined();
+    expect(created.body.data.temporaryPassword).toBe(body.password);
 
     const dup = await request(app).post('/api/admin/scanners').set(authHeader(superToken)).send(body);
     expect(dup.status).toBe(409);

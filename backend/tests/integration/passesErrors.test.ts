@@ -302,7 +302,7 @@ describe('Check-in errors', () => {
 
     const early = await scan();
     expect(early.status).toBe(400);
-    expect(early.body.message).toMatch(/only valid between/);
+    expect(early.body.message).toMatch(/not valid for today/);
 
     const verify = await request(app)
       .post('/api/admin/tickets/verify')
