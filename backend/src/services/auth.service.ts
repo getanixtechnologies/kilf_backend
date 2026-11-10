@@ -17,6 +17,7 @@ export function toAdminDto(admin: {
   isActive: boolean;
   lastLoginAt: Date | null;
   createdAt: Date;
+  mustChangePassword?: boolean;
 }) {
   return {
     id: admin.id,
@@ -26,6 +27,7 @@ export function toAdminDto(admin: {
     isActive: admin.isActive,
     lastLoginAt: admin.lastLoginAt,
     createdAt: admin.createdAt,
+    mustChangePassword: admin.mustChangePassword ?? false,
   };
 }
 
@@ -130,12 +132,18 @@ export async function changePassword(adminId: string, input: ChangePasswordInput
 
   const valid = await verifyPassword(admin.passwordHash, input.currentPassword);
   if (!valid) throw ApiError.badRequest('Current password is incorrect');
+  if (input.currentPassword === input.newPassword) {
+    throw ApiError.badRequest('New password must be different from the current one');
+  }
 
+  // Other sessions are signed out; this one gets fresh tokens so it can carry on.
   const passwordHash = await hashPassword(input.newPassword);
-  await prisma.admin.update({
+  const refreshToken = signRefreshToken(admin);
+  const updated = await prisma.admin.update({
     where: { id: adminId },
-    data: { passwordHash, refreshTokenHash: null },
+    data: { passwordHash, refreshTokenHash: hashToken(refreshToken), mustChangePassword: false },
   });
+  return { token: signAccessToken(updated), refreshToken, admin: toAdminDto(updated) };
 }
 
 /**
@@ -178,6 +186,7 @@ export async function resetPassword(rawToken: string, newPassword: string) {
       passwordResetToken: null,
       passwordResetExpires: null,
       refreshTokenHash: null,
+      mustChangePassword: false,
     },
   });
 }

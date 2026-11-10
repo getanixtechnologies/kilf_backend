@@ -13,6 +13,9 @@ export interface PassRules {
   maxAge: number | null;
   multiDay: boolean;
   perks: string[];
+  /** Event days admitted; null = 1, or every festival day for multiDay. */
+  validityDays: number | null;
+  allowReentry: boolean;
 }
 
 /** Rules each pass type implies; anything the admin sends explicitly overrides these. */
@@ -22,6 +25,7 @@ const TYPE_PRESETS: Partial<Record<TicketType, Partial<PassRules>>> = {
   YOUNG_READER: { multiDay: true },
   ELITE: { multiDay: true, requiresShowSession: true },
   KHASAK_SHOW: { requiresShowSession: true },
+  DRAMA: { requiresShowSession: true },
   NEW_YEAR_EVE: { gstRate: 0 },
 };
 
@@ -122,6 +126,8 @@ export async function createTicket(data: {
     maxAge: data.maxAge ?? null,
     multiDay: data.multiDay ?? preset.multiDay ?? false,
     perks: data.perks ?? [],
+    validityDays: data.validityDays ?? null,
+    allowReentry: data.allowReentry ?? false,
   });
 }
 
@@ -227,6 +233,8 @@ function toPublicTicketDto(ticket: Awaited<ReturnType<typeof ticketRepository.fi
     maxAge: ticket.maxAge,
     multiDay: ticket.multiDay,
     perks: ticket.perks,
+    validityDays: ticket.validityDays,
+    allowReentry: ticket.allowReentry,
   };
 }
 

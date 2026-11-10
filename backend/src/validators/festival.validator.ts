@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { isValidTimeZone } from '../utils/istDate';
 
 const FestivalStatusEnum = z.enum(['DRAFT', 'PUBLISHED', 'CANCELLED', 'COMPLETED']);
 
@@ -15,6 +16,7 @@ export const createFestivalSchema = z.object({
       registrationEnd: z.coerce.date().optional(),
       bannerImage: z.string().url().optional().or(z.literal('')),
       status: FestivalStatusEnum.optional(),
+      timezone: z.string().refine(isValidTimeZone, 'Invalid IANA timezone').optional(),
     })
     .refine((data) => data.endDate >= data.startDate, {
       message: 'endDate must be on or after startDate',
@@ -35,6 +37,7 @@ export const updateFestivalSchema = z.object({
     registrationEnd: z.coerce.date().optional(),
     bannerImage: z.string().url().optional().or(z.literal('')),
     status: FestivalStatusEnum.optional(),
+    timezone: z.string().refine(isValidTimeZone, 'Invalid IANA timezone').optional(),
   }),
 });
 

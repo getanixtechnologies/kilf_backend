@@ -6,7 +6,20 @@ import { checkInTicketSchema, verifyTicketSchema } from '../../validators/checki
 
 const router = Router();
 
+// Checkers (SCANNER) and admins both reach these routes.
 router.use(authenticate);
+
+/**
+ * @openapi
+ * /api/admin/tickets/number-format:
+ *   get:
+ *     tags: [Admin Check-in]
+ *     summary: Fixed prefix of ticket numbers (e.g. LF-2026-) for manual entry
+ *     security: [{ bearerAuth: [] }]
+ *     responses:
+ *       200: { description: Prefix and number of suffix digits }
+ */
+router.get('/number-format', checkinController.numberFormat);
 
 /**
  * @openapi

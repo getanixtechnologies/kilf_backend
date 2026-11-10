@@ -10,6 +10,7 @@ const TicketTypeEnum = z.enum([
   'YOUNG_READER',
   'ELITE',
   'KHASAK_SHOW',
+  'DRAMA',
   'NEW_YEAR_EVE',
 ]);
 const TicketSaleStatusEnum = z.enum(['ACTIVE', 'INACTIVE']);
@@ -22,6 +23,8 @@ const passRuleFields = {
   maxAge: z.coerce.number().int().min(0).max(120).nullable().optional(),
   multiDay: z.boolean().optional(),
   perks: z.array(z.string().min(1).max(200)).max(20).optional(),
+  validityDays: z.coerce.number().int().min(1).max(60).nullable().optional(),
+  allowReentry: z.boolean().optional(),
 };
 
 export const createTicketSchema = z.object({

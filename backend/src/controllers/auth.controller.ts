@@ -48,9 +48,9 @@ export const me = asyncHandler(async (req: Request, res: Response) => {
 });
 
 export const changePassword = asyncHandler(async (req: Request, res: Response) => {
-  await authService.changePassword(req.admin!.id, req.body);
+  const session = await authService.changePassword(req.admin!.id, req.body);
   await recordAuditLogFromRequest(req, 'ADMIN_CHANGE_PASSWORD', 'Admin', req.admin!.id);
-  return sendSuccess(res, null, 'Password changed successfully');
+  return sendSuccess(res, session, 'Password changed successfully');
 });
 
 export const forgotPassword = asyncHandler(async (req: Request, res: Response) => {

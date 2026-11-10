@@ -48,6 +48,21 @@ const envSchema = z.object({
   MAX_UPLOAD_MB: z.coerce.number().default(5),
 
   LOG_LEVEL: z.string().default('info'),
+
+  // Ticket numbers look like `${TICKET_NUMBER_PREFIX}-2026-000123`.
+  TICKET_NUMBER_PREFIX: z.string().trim().min(1).default('LF'),
+
+  // Login page linked from checker credential emails. Defaults to `${ADMIN_URL}/login`.
+  // Prod: https://admin.kilf.in/login, dev: https://admin.dev.kilf.in/login
+  ADMIN_LOGIN_URL: z.preprocess((v) => (v === '' ? undefined : v), z.string().url().optional()),
+
+  // Outgoing mail (SMTP). When SMTP_HOST is unset, emails are logged instead of sent.
+  SMTP_HOST: z.preprocess((v) => (v === '' ? undefined : v), z.string().optional()),
+  SMTP_PORT: z.coerce.number().default(587),
+  SMTP_SECURE: z.preprocess((v) => v === 'true' || v === '1' || v === true, z.boolean()).default(false),
+  SMTP_USER: z.string().optional(),
+  SMTP_PASS: z.string().optional(),
+  MAIL_FROM: z.string().default('KILF <no-reply@kilf.in>'),
 });
 
 const parsed = envSchema.safeParse(process.env);

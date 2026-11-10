@@ -13,6 +13,7 @@ import earlyBirdRoutes from './earlyBird.routes';
 import enquiryRoutes from './enquiry.routes';
 import showSessionRoutes from './showSession.routes';
 import scannerRoutes from './scanner.routes';
+import verificationLogRoutes from './verificationLog.routes';
 
 const router = Router();
 
@@ -35,5 +36,6 @@ router.use('/early-bird', ...guarded, earlyBirdRoutes);
 router.use('/enquiries', ...guarded, enquiryRoutes);
 router.use('/show-sessions', ...guarded, showSessionRoutes);
 router.use('/scanners', ...guarded, scannerRoutes);
+router.use('/verification-logs', ...guarded, verificationLogRoutes);
 
 export default router;

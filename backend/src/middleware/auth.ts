@@ -39,8 +39,15 @@ export const authenticate = asyncHandler(async (req: Request, _res: Response, ne
   }
 
   req.admin = { id: admin.id, email: admin.email, role: admin.role };
+
+  // A temporary password only unlocks the change-password flow.
+  if (admin.mustChangePassword && !PASSWORD_CHANGE_ALLOWED.some((p) => req.originalUrl.split('?')[0].endsWith(p))) {
+    throw ApiError.forbidden('You must change your temporary password before continuing');
+  }
   next();
 });
+
+const PASSWORD_CHANGE_ALLOWED = ['/auth/me', '/auth/change-password', '/auth/logout'];
 
 export function authorize(...roles: AdminRole[]) {
   return (req: Request, _res: Response, next: NextFunction) => {
