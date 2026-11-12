@@ -1,20 +1,19 @@
 import { z } from 'zod';
 
-const TicketTypeEnum = z.enum([
-  'GENERAL',
-  'VIP',
-  'STUDENT',
-  'EARLY_BIRD',
-  'DAY_PASS',
-  'FULL_FESTIVAL',
-  'YOUNG_READER',
-  'ELITE',
-  'KHASAK_SHOW',
-  'NEW_YEAR_EVE',
-]);
 const TicketSaleStatusEnum = z.enum(['ACTIVE', 'INACTIVE']);
 
+/** Ticket ID prefix: letters only, stored upper-case; "" or null clears it. */
+const idPrefix = z
+  .string()
+  .trim()
+  .transform((v) => v.toUpperCase())
+  .refine((v) => v === '' || /^[A-Z]{1,10}$/.test(v), 'idPrefix must be 1-10 letters (A-Z)')
+  .transform((v) => v || null)
+  .nullable()
+  .optional();
+
 const passRuleFields = {
+  idPrefix,
   gstRate: z.coerce.number().min(0).max(100).optional(),
   requiresDate: z.boolean().optional(),
   requiresShowSession: z.boolean().optional(),
@@ -22,15 +21,16 @@ const passRuleFields = {
   maxAge: z.coerce.number().int().min(0).max(120).nullable().optional(),
   multiDay: z.boolean().optional(),
   perks: z.array(z.string().min(1).max(200)).max(20).optional(),
+  validityDays: z.coerce.number().int().min(1).max(60).nullable().optional(),
+  allowReentry: z.boolean().optional(),
 };
 
 export const createTicketSchema = z.object({
   body: z
     .object({
-      festivalId: z.string().uuid(),
+      festivalId: z.string().uuid().optional(),
       name: z.string().min(2).max(200),
       description: z.string().max(2000).optional(),
-      ticketType: TicketTypeEnum.default('GENERAL'),
       price: z.coerce.number().nonnegative(),
       totalQuantity: z.coerce.number().int().positive(),
       salesStart: z.coerce.date(),
@@ -49,7 +49,6 @@ export const updateTicketSchema = z.object({
   body: z.object({
     name: z.string().min(2).max(200).optional(),
     description: z.string().max(2000).optional(),
-    ticketType: TicketTypeEnum.optional(),
     price: z.coerce.number().nonnegative().optional(),
     totalQuantity: z.coerce.number().int().positive().optional(),
     salesStart: z.coerce.date().optional(),
@@ -69,7 +68,6 @@ export const listTicketsSchema = z.object({
     limit: z.coerce.number().int().positive().optional(),
     festivalId: z.string().uuid().optional(),
     status: TicketSaleStatusEnum.optional(),
-    ticketType: TicketTypeEnum.optional(),
     search: z.string().optional(),
   }),
 });

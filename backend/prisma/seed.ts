@@ -1,4 +1,4 @@
-import { PrismaClient, TicketType, SponsorshipLevel } from '@prisma/client';
+import { PrismaClient, SponsorshipLevel } from '@prisma/client';
 import { hashPassword } from '../src/utils/password';
 import { generateBookingNumber, generateTicketNumber } from '../src/utils/idGenerators';
 import { generateQrCodeDataUrl } from '../src/services/qrcode.service';
@@ -63,49 +63,42 @@ async function main() {
   const ticketDefs: Array<{
     name: string;
     description: string;
-    ticketType: TicketType;
     price: number;
     totalQuantity: number;
   }> = [
     {
       name: 'General Admission',
       description: 'Access to all main-stage sessions and the exhibition area.',
-      ticketType: 'GENERAL',
       price: 500,
       totalQuantity: 500,
     },
     {
       name: 'VIP Pass',
       description: 'Front-row seating, meet-the-author sessions, and a festival goodie bag.',
-      ticketType: 'VIP',
       price: 2500,
       totalQuantity: 100,
     },
     {
       name: 'Student Pass',
       description: 'Discounted entry for students with a valid ID.',
-      ticketType: 'STUDENT',
       price: 250,
       totalQuantity: 300,
     },
     {
       name: 'Early Bird Full Festival',
       description: 'All three days at a discounted early-bird rate.',
-      ticketType: 'EARLY_BIRD',
       price: 1200,
       totalQuantity: 150,
     },
     {
       name: 'Day Pass',
       description: 'Single-day access, choose any one festival day.',
-      ticketType: 'DAY_PASS',
       price: 300,
       totalQuantity: 400,
     },
     {
       name: 'Full Festival Pass',
       description: 'Unlimited access to all three days of the festival.',
-      ticketType: 'FULL_FESTIVAL',
       price: 1500,
       totalQuantity: 200,
     },
@@ -121,7 +114,6 @@ async function main() {
         festivalId: festival.id,
         name: def.name,
         description: def.description,
-        ticketType: def.ticketType,
         price: def.price,
         totalQuantity: def.totalQuantity,
         availableQuantity: def.totalQuantity,

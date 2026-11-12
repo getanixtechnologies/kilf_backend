@@ -1,8 +1,7 @@
 name: Deploy Production
 
-# Runs when main changes (merge develop -> main via PR). The "production"
-# GitHub Environment should have "Required reviewers" on, so every prod
-# deploy waits for a manual approval click.
+# Every secret/variable below is read from the "production" GitHub Environment
+# (turn on Required reviewers there so each prod deploy waits for approval).
 on:
   push:
     branches: [main]
@@ -23,37 +22,74 @@ jobs:
     permissions:
       contents: read
     env:
-      HOST: ${{ secrets.PROD_HOST }}
-      SSH_USER: ${{ secrets.PROD_USER }}
-      SSH_PORT: ${{ secrets.PROD_SSH_PORT || '22' }}
-      DIR: ${{ vars.PROD_DEPLOY_DIR }}
+      SSH_HOST: ${{ secrets.SSH_HOST }}
+      SSH_USER: ${{ secrets.SSH_USER }}
+      SSH_PORT: ${{ secrets.SSH_PORT || '22' }}
+      DEPLOY_DIR: ${{ vars.DEPLOY_DIR || '/root/kilf_backend' }}
+      PM2_NAME: ${{ vars.PM2_NAME || 'kilf-backend' }}
     steps:
-      - name: Check config
-        run: test -n "$DIR" || { echo "Set the PROD_DEPLOY_DIR variable on the production environment"; exit 1; }
+      - uses: actions/checkout@v4
 
       - name: Prepare SSH
         env:
-          SSH_KEY: ${{ secrets.PROD_SSH_KEY }}
+          SSH_KEY: ${{ secrets.SSH_KEY }}
         run: |
+          for v in SSH_HOST SSH_USER SSH_KEY; do
+            [ -n "${!v}" ] || { echo "Missing secret $v on the 'production' environment"; exit 1; }
+          done
           install -m 700 -d ~/.ssh
           printf '%s\n' "$SSH_KEY" > ~/.ssh/id_deploy
           chmod 600 ~/.ssh/id_deploy
-          ssh-keyscan -p "$SSH_PORT" "$HOST" >> ~/.ssh/known_hosts
+          ssh-keyscan -p "$SSH_PORT" "$SSH_HOST" >> ~/.ssh/known_hosts
 
-      # Prod keeps its existing layout: a git checkout on the VPS with its own
-      # compose file and secrets. We only move it to the tested commit and rebuild.
-      - name: Update and rebuild on server
+      - name: Build backend .env from GitHub secrets
+        env:
+          # secrets
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          JWT_REFRESH_SECRET: ${{ secrets.JWT_REFRESH_SECRET }}
+          PAYMENT_SECRET: ${{ secrets.PAYMENT_SECRET }}
+          RAZORPAY_KEY_ID: ${{ secrets.RAZORPAY_KEY_ID }}
+          RAZORPAY_KEY_SECRET: ${{ secrets.RAZORPAY_KEY_SECRET }}
+          RAZORPAY_WEBHOOK_SECRET: ${{ secrets.RAZORPAY_WEBHOOK_SECRET }}
+          # config: read from Variables, or from Secrets if added there
+          PORT: ${{ vars.PORT || secrets.PORT }}
+          API_URL: ${{ vars.API_URL || secrets.API_URL }}
+          FRONTEND_URL: ${{ vars.FRONTEND_URL || secrets.FRONTEND_URL }}
+          ADMIN_URL: ${{ vars.ADMIN_URL || secrets.ADMIN_URL }}
+          PAYMENT_PROVIDER: ${{ vars.PAYMENT_PROVIDER || secrets.PAYMENT_PROVIDER }}
+          JWT_EXPIRES_IN: ${{ vars.JWT_EXPIRES_IN || secrets.JWT_EXPIRES_IN }}
+          JWT_REFRESH_EXPIRES_IN: ${{ vars.JWT_REFRESH_EXPIRES_IN || secrets.JWT_REFRESH_EXPIRES_IN }}
+          BOOKING_HOLD_MINUTES: ${{ vars.BOOKING_HOLD_MINUTES || secrets.BOOKING_HOLD_MINUTES }}
+          RATE_LIMIT_WINDOW_MS: ${{ vars.RATE_LIMIT_WINDOW_MS || secrets.RATE_LIMIT_WINDOW_MS }}
+          RATE_LIMIT_MAX: ${{ vars.RATE_LIMIT_MAX || secrets.RATE_LIMIT_MAX }}
+          UPLOAD_DIR: ${{ vars.UPLOAD_DIR || secrets.UPLOAD_DIR }}
+          MAX_UPLOAD_MB: ${{ vars.MAX_UPLOAD_MB || secrets.MAX_UPLOAD_MB }}
+          LOG_LEVEL: ${{ vars.LOG_LEVEL || secrets.LOG_LEVEL }}
+        run: bash deploy/render-env.sh > backend.env
+
+      - name: Upload .env to server
         run: |
-          ssh -i ~/.ssh/id_deploy -p "$SSH_PORT" "$SSH_USER@$HOST" \
-            "set -e; cd '$DIR' \
-             && git fetch origin main && git checkout -q ${{ github.sha }} \
-             && docker compose up -d --build --remove-orphans \
-             && docker image prune -f"
+          ssh -i ~/.ssh/id_deploy -p "$SSH_PORT" "$SSH_USER@$SSH_HOST" \
+            "set -e; f='$DEPLOY_DIR/backend/.env'; [ -f \"\$f\" ] && cp -p \"\$f\" \"\$f.bak\"; umask 077; cat > \"\$f\"" \
+            < backend.env
+          rm -f backend.env
+
+      - name: Deploy on server
+        run: |
+          ssh -i ~/.ssh/id_deploy -p "$SSH_PORT" "$SSH_USER@$SSH_HOST" \
+            DIR="'$DEPLOY_DIR'" \
+            SHA='${{ github.sha }}' \
+            PM2_NAME="'$PM2_NAME'" \
+            BUILD_ADMIN='${{ vars.BUILD_ADMIN || 'false' }}' \
+            ADMIN_API_URL='${{ vars.API_URL || secrets.API_URL }}' \
+            'bash -s' < deploy/remote-deploy.sh
 
       - name: Smoke test
         env:
-          API_URL: ${{ vars.PROD_API_URL }}
+          API_URL: ${{ vars.API_URL || secrets.API_URL }}
         run: |
+          [ -n "$API_URL" ] || { echo "Set the API_URL variable to enable the smoke test"; exit 0; }
           for i in $(seq 1 12); do
             if curl -fsS "$API_URL/health"; then exit 0; fi
             sleep 5

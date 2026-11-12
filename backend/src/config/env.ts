@@ -18,6 +18,7 @@ const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   PORT: z.coerce.number().default(4000),
   FRONTEND_URL: z.string().default('http://localhost:5173'),
+  ADMIN_URL: z.string().default('http://localhost:5174'),
   // Public base URL of this API (e.g. https://api.kilf.in). Used for the Swagger
   // server entry; falls back to http://localhost:PORT when unset.
   API_URL: z.preprocess((v) => (v === '' ? undefined : v), z.string().url().optional()),
@@ -47,6 +48,25 @@ const envSchema = z.object({
   MAX_UPLOAD_MB: z.coerce.number().default(5),
 
   LOG_LEVEL: z.string().default('info'),
+
+  // Ticket numbers look like `${TICKET_NUMBER_PREFIX}-2026-000123`.
+  TICKET_NUMBER_PREFIX: z.string().trim().min(1).default('LF'),
+  // Dates for the festival created automatically when the first ticket is added
+  // and none exists yet (YYYY-MM-DD, festival timezone). Check-in validity uses them.
+  FESTIVAL_START_DATE: z.string().regex(/^d{4}-d{2}-d{2}$/).optional(),
+  FESTIVAL_END_DATE: z.string().regex(/^d{4}-d{2}-d{2}$/).optional(),
+
+  // Login page linked from checker credential emails. Defaults to `${ADMIN_URL}/login`.
+  // Prod: https://admin.kilf.in/login, dev: https://admin.dev.kilf.in/login
+  ADMIN_LOGIN_URL: z.preprocess((v) => (v === '' ? undefined : v), z.string().url().optional()),
+
+  // Outgoing mail (SMTP). When SMTP_HOST is unset, emails are logged instead of sent.
+  SMTP_HOST: z.preprocess((v) => (v === '' ? undefined : v), z.string().optional()),
+  SMTP_PORT: z.coerce.number().default(587),
+  SMTP_SECURE: z.preprocess((v) => v === 'true' || v === '1' || v === true, z.boolean()).default(false),
+  SMTP_USER: z.string().optional(),
+  SMTP_PASS: z.string().optional(),
+  MAIL_FROM: z.string().default('KILF <no-reply@kilf.in>'),
 });
 
 const parsed = envSchema.safeParse(process.env);

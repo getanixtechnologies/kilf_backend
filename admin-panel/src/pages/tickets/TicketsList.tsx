@@ -9,31 +9,28 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { EmptyState } from '@/components/common/EmptyState';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import { DataPanel } from '@/components/common/DataPanel';
-import { FilterSelect, SearchInput } from '@/components/common/ListControls';
+import { SearchInput } from '@/components/common/ListControls';
 import { ProgressBar } from '@/components/common/ProgressBar';
 import { useListParams } from '@/hooks/useListParams';
 import { archiveTicket, deleteTicket, listTickets, updateTicketStatus } from '@/services/ticket.service';
-import { formatCurrency, formatLabel, formatNumber } from '@/lib/utils';
-import { TicketSaleStatus, TicketType } from '@/types';
+import { formatCurrency, formatNumber } from '@/lib/utils';
+import { TicketSaleStatus } from '@/types';
 import { getApiErrorMessage } from '@/services/api';
 
-const TICKET_TYPES: TicketType[] = ['GENERAL', 'VIP', 'STUDENT', 'EARLY_BIRD', 'DAY_PASS', 'FULL_FESTIVAL'];
-const FILTER_KEYS = ['search', 'type'] as const;
+const FILTER_KEYS = ['search'] as const;
 
 export default function TicketsListPage() {
   const { page, get, setFilter, setPage, hasFilters, clearFilters } = useListParams(FILTER_KEYS);
   const search = get('search');
-  const ticketType = get('type');
   const queryClient = useQueryClient();
 
   const { data, isLoading, isError, isPlaceholderData, refetch } = useQuery({
-    queryKey: ['tickets', page, search, ticketType],
+    queryKey: ['tickets', page, search],
     queryFn: () =>
       listTickets({
         page,
         limit: 10,
         search: search || undefined,
-        ticketType: (ticketType as TicketType) || undefined,
       }),
     placeholderData: keepPreviousData,
   });
@@ -83,12 +80,6 @@ export default function TicketsListPage() {
         filters={
           <>
             <SearchInput value={search} onChange={(v) => setFilter('search', v)} placeholder="Search tickets" />
-            <FilterSelect
-              value={ticketType}
-              onChange={(v) => setFilter('type', v)}
-              allLabel="All types"
-              options={TICKET_TYPES.map((t) => ({ value: t, label: formatLabel(t) }))}
-            />
           </>
         }
         isLoading={isLoading}
@@ -134,8 +125,7 @@ export default function TicketsListPage() {
                       {ticket.name}
                     </Link>
                     <p className="text-xs text-muted-foreground">
-                      {formatLabel(ticket.ticketType)}
-                      {ticket.festival?.name ? ` • ${ticket.festival.name}` : ''}
+                      {ticket.festival?.name ?? ''}
                     </p>
                   </TableCell>
                   <TableCell className="whitespace-nowrap">{formatCurrency(ticket.price)}</TableCell>

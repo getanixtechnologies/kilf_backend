@@ -24,7 +24,7 @@ export function createApp(): Express {
   app.use(helmet());
   app.use(
     cors({
-      origin: env.FRONTEND_URL,
+      origin: [env.FRONTEND_URL, env.ADMIN_URL],
       credentials: true,
     })
   );

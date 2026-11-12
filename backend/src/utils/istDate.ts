@@ -21,3 +21,33 @@ export function ageOn(dateOfBirth: Date, on: Date): number {
   if (beforeBirthday) age -= 1;
   return age;
 }
+
+/**
+ * The calendar day `date` falls on in an IANA timezone, as a Date at UTC
+ * midnight (the `@db.Date` convention). Falls back to IST for a bad zone.
+ */
+export function toZonedDate(date: Date, timeZone: string): Date {
+  let parts: Intl.DateTimeFormatPart[];
+  try {
+    parts = new Intl.DateTimeFormat('en-CA', {
+      timeZone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).formatToParts(date);
+  } catch {
+    return toIstDate(date);
+  }
+  const get = (t: string) => Number(parts.find((p) => p.type === t)!.value);
+  return new Date(Date.UTC(get('year'), get('month') - 1, get('day')));
+}
+
+/** Whether `timeZone` is a valid IANA zone name. */
+export function isValidTimeZone(timeZone: string): boolean {
+  try {
+    new Intl.DateTimeFormat('en-US', { timeZone });
+    return true;
+  } catch {
+    return false;
+  }
+}

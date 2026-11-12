@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { formatCurrency, formatLabel, formatNumber } from '@/lib/utils';
+import { formatCurrency, formatNumber } from '@/lib/utils';
 import { TicketBreakdown } from '@/types';
 
 function SlotsBar({ row }: { row: TicketBreakdown }) {
@@ -41,7 +41,7 @@ export function TicketBreakdownTable({ rows }: { rows: TicketBreakdown[] }) {
             <TableCell>
               <p className="font-medium">{row.name}</p>
               <p className="text-xs text-muted-foreground">
-                {formatLabel(row.ticketType)} • {formatCurrency(row.price)}
+                {formatCurrency(row.price)}
               </p>
             </TableCell>
             <TableCell>

@@ -9,7 +9,10 @@ import { recordAuditLogFromRequest } from '../services/auditLog.service';
 // ---- Public ----
 
 export const create = asyncHandler(async (req: Request, res: Response) => {
-  const { booking, payment } = await bookingService.createBooking(req.body);
+  const { booking, payment } = await bookingService.createBooking(
+    req.body,
+    req.guest?.id ?? null
+  );
   return sendSuccess(
     res,
     {
@@ -32,6 +35,11 @@ export const create = asyncHandler(async (req: Request, res: Response) => {
     'Booking created',
     201
   );
+});
+
+export const quote = asyncHandler(async (req: Request, res: Response) => {
+  const result = await bookingService.quoteBooking(req.body.ticketId, Number(req.body.quantity));
+  return sendSuccess(res, result, 'Price calculated');
 });
 
 export const confirmPayment = asyncHandler(async (req: Request, res: Response) => {
@@ -86,7 +94,7 @@ export const exportCsv = asyncHandler(async (req: Request, res: Response) => {
     bookingNumber: b.bookingNumber,
     customerName: b.customer.name,
     customerEmail: b.customer.email,
-    customerPhone: b.customer.phone,
+    customerPhone: b.customer.phone ?? '',
     tickets: b.bookingItems.map((i) => `${i.ticket.name} x${i.quantity}`).join('; '),
     quantity: b.quantity,
     totalAmount: b.totalAmount.toString(),

@@ -1,8 +1,11 @@
-import { TicketSaleStatus, TicketType } from '@prisma/client';
+import { TicketSaleStatus } from '@prisma/client';
 import * as ticketRepository from '../repositories/ticket.repository';
 import { getFestival } from './festival.service';
 import { ApiError } from '../utils/ApiError';
+import { prisma } from '../config/prisma';
 import { buildPagination } from '../utils/apiResponse';
+import { reservedIdPrefixes } from '../utils/idGenerators';
+import { env } from '../config/env';
 
 export interface PassRules {
   gstRate: number;
@@ -12,22 +15,11 @@ export interface PassRules {
   maxAge: number | null;
   multiDay: boolean;
   perks: string[];
-}
-
-/** Rules each pass type implies; anything the admin sends explicitly overrides these. */
-const TYPE_PRESETS: Partial<Record<TicketType, Partial<PassRules>>> = {
-  DAY_PASS: { requiresDate: true },
-  FULL_FESTIVAL: { multiDay: true },
-  YOUNG_READER: { multiDay: true },
-  ELITE: { multiDay: true, requiresShowSession: true },
-  KHASAK_SHOW: { requiresShowSession: true },
-  NEW_YEAR_EVE: { gstRate: 0 },
-};
-
-function assertPriceMatchesType(ticketType: TicketType, price: number) {
-  if (ticketType === 'NEW_YEAR_EVE' && price !== 0) {
-    throw ApiError.badRequest("New Year's Eve registration is free; price must be 0");
-  }
+  /** Event days admitted; null = 1, or every festival day for multiDay. */
+  validityDays: number | null;
+  allowReentry: boolean;
+  /** Letters in front of this ticket's ticket/booking numbers; null = default format. */
+  idPrefix: string | null;
 }
 
 function assertAgeRange(minAge?: number | null, maxAge?: number | null) {
@@ -41,7 +33,6 @@ export interface ListTicketsParams {
   limit: number;
   festivalId?: string;
   status?: TicketSaleStatus;
-  ticketType?: TicketType;
   search?: string;
 }
 
@@ -50,7 +41,6 @@ export async function listTickets(params: ListTicketsParams) {
   const { items, total } = await ticketRepository.findMany({
     festivalId: params.festivalId,
     status: params.status,
-    ticketType: params.ticketType,
     search: params.search,
     skip,
     take: params.limit,
@@ -76,40 +66,87 @@ export async function getTicketWithInventory(id: string) {
   };
 }
 
+/** A prefix must not be a default format's or already used by another ticket. */
+async function assertIdPrefixAvailable(idPrefix: string | null | undefined, ticketId?: string) {
+  if (!idPrefix) return;
+  if (reservedIdPrefixes().includes(idPrefix)) {
+    throw ApiError.badRequest(`Ticket ID prefix ${idPrefix} is reserved for the default format`);
+  }
+  const other = await prisma.ticket.findUnique({ where: { idPrefix }, select: { id: true, name: true } });
+  if (other && other.id !== ticketId) {
+    throw ApiError.conflict(`Ticket ID prefix ${idPrefix} is already used by "${other.name}"`);
+  }
+}
+
+/**
+ * Creates the festival tickets attach to when none exists yet, so admins can
+ * add tickets without a festival screen. Dates come from FESTIVAL_START_DATE /
+ * FESTIVAL_END_DATE, else today for 5 days. Midnight IST is 18:30 UTC the day before.
+ */
+async function createDefaultFestival() {
+  const istMidnight = (ymd: string) => new Date(`${ymd}T00:00:00+05:30`);
+  const today = new Date(Date.now() + 5.5 * 3600 * 1000).toISOString().slice(0, 10);
+  const startYmd = env.FESTIVAL_START_DATE ?? today;
+  const startDate = istMidnight(startYmd);
+  const endDate = env.FESTIVAL_END_DATE
+    ? istMidnight(env.FESTIVAL_END_DATE)
+    : new Date(startDate.getTime() + 4 * 24 * 3600 * 1000);
+  return prisma.festival.create({
+    data: {
+      name: `KILF ${startYmd.slice(0, 4)}`,
+      startDate,
+      endDate,
+      status: 'PUBLISHED',
+      timezone: 'Asia/Kolkata',
+    },
+    select: { id: true },
+  });
+}
+
+/** Uses the given festival, or falls back to the latest one (most recent start date). */
+async function resolveFestivalId(festivalId?: string) {
+  if (festivalId) {
+    await getFestival(festivalId); // ensures festival exists
+    return festivalId;
+  }
+  const latest = await prisma.festival.findFirst({ orderBy: { startDate: 'desc' }, select: { id: true } });
+  return (latest ?? (await createDefaultFestival())).id;
+}
+
 export async function createTicket(data: {
-  festivalId: string;
+  festivalId?: string;
   name: string;
   description?: string;
-  ticketType: TicketType;
   price: number;
   totalQuantity: number;
   salesStart: Date;
   salesEnd: Date;
   status?: TicketSaleStatus;
 } & Partial<PassRules>) {
-  await getFestival(data.festivalId); // ensures festival exists
-  assertPriceMatchesType(data.ticketType, data.price);
+  const festivalId = await resolveFestivalId(data.festivalId);
   assertAgeRange(data.minAge, data.maxAge);
-  const preset = TYPE_PRESETS[data.ticketType] ?? {};
+  await assertIdPrefixAvailable(data.idPrefix);
 
   return ticketRepository.create({
-    festivalId: data.festivalId,
+    festivalId,
     name: data.name,
     description: data.description,
-    ticketType: data.ticketType,
     price: data.price,
     totalQuantity: data.totalQuantity,
     availableQuantity: data.totalQuantity,
     salesStart: data.salesStart,
     salesEnd: data.salesEnd,
     status: data.status ?? 'ACTIVE',
-    gstRate: data.gstRate ?? preset.gstRate ?? 18,
-    requiresDate: data.requiresDate ?? preset.requiresDate ?? false,
-    requiresShowSession: data.requiresShowSession ?? preset.requiresShowSession ?? false,
+    gstRate: data.gstRate ?? 18,
+    requiresDate: data.requiresDate ?? false,
+    requiresShowSession: data.requiresShowSession ?? false,
     minAge: data.minAge ?? null,
     maxAge: data.maxAge ?? null,
-    multiDay: data.multiDay ?? preset.multiDay ?? false,
+    multiDay: data.multiDay ?? false,
     perks: data.perks ?? [],
+    validityDays: data.validityDays ?? null,
+    allowReentry: data.allowReentry ?? false,
+    idPrefix: data.idPrefix ?? null,
   });
 }
 
@@ -118,7 +155,6 @@ export async function updateTicket(
   data: Partial<{
     name: string;
     description: string;
-    ticketType: TicketType;
     price: number;
     totalQuantity: number;
     salesStart: Date;
@@ -128,8 +164,15 @@ export async function updateTicket(
     Partial<PassRules>
 ) {
   const ticket = await getTicket(id);
-  assertPriceMatchesType(data.ticketType ?? ticket.ticketType, data.price ?? Number(ticket.price));
   assertAgeRange(data.minAge ?? ticket.minAge, data.maxAge ?? ticket.maxAge);
+  if (data.idPrefix !== undefined && data.idPrefix !== ticket.idPrefix) {
+    await assertIdPrefixAvailable(data.idPrefix, id);
+    // Issued numbers already carry the old prefix; changing it would split one ticket type across two.
+    const issued = await prisma.ticketInstance.count({ where: { ticketId: id } });
+    if (issued > 0) {
+      throw ApiError.badRequest('Ticket ID prefix cannot be changed after tickets have been issued');
+    }
+  }
   const updateData: Record<string, unknown> = { ...data };
 
   if (data.totalQuantity !== undefined && data.totalQuantity !== ticket.totalQuantity) {
@@ -203,7 +246,6 @@ function toPublicTicketDto(ticket: Awaited<ReturnType<typeof ticketRepository.fi
     festivalId: ticket.festivalId,
     name: ticket.name,
     description: ticket.description,
-    ticketType: ticket.ticketType,
     price: ticket.price,
     availableQuantity: ticket.availableQuantity,
     salesStart: ticket.salesStart,
@@ -215,6 +257,8 @@ function toPublicTicketDto(ticket: Awaited<ReturnType<typeof ticketRepository.fi
     maxAge: ticket.maxAge,
     multiDay: ticket.multiDay,
     perks: ticket.perks,
+    validityDays: ticket.validityDays,
+    allowReentry: ticket.allowReentry,
   };
 }
 

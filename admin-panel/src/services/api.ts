@@ -1,7 +1,9 @@
 import axios, { AxiosError } from 'axios';
 import { tokenStorage } from './tokenStorage';
 
-// Falls back to production API when VITE_API_URL is unset; an empty value (embedded build) stays same-origin.
+// Set at build time by vite.config.ts: branch `develop` -> https://dev.api.kilf.in,
+// `main` -> https://api.kilf.in, otherwise VITE_API_URL from .env. Falls back to
+// production when unset; an empty value (embedded build) stays same-origin.
 export const API_URL: string = import.meta.env.VITE_API_URL ?? 'https://api.kilf.in';
 
 export const api = axios.create({

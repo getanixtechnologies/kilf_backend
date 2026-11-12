@@ -42,6 +42,75 @@ const options: swaggerJsdoc.Options = {
             errors: { type: 'array', items: {} },
           },
         },
+        GuestBooking: {
+          type: 'object',
+          properties: {
+            bookingNumber: { type: 'string' },
+            status: { type: 'string' },
+            quantity: { type: 'integer' },
+            subtotalAmount: { type: 'string' },
+            gstAmount: { type: 'string' },
+            totalAmount: { type: 'string' },
+            currency: { type: 'string' },
+            createdAt: { type: 'string', format: 'date-time' },
+            ticket: {
+              type: 'object',
+              properties: { name: { type: 'string' } },
+            },
+            festival: {
+              type: 'object',
+              properties: {
+                name: { type: 'string' },
+                startDate: { type: 'string', format: 'date-time' },
+                endDate: { type: 'string', format: 'date-time' },
+              },
+            },
+            payment: {
+              type: 'object',
+              nullable: true,
+              properties: {
+                status: { type: 'string' },
+                method: { type: 'string', nullable: true },
+                razorpayPaymentId: { type: 'string', nullable: true },
+                paidAt: { type: 'string', format: 'date-time', nullable: true },
+              },
+            },
+            customer: {
+              type: 'object',
+              properties: {
+                name: { type: 'string' },
+                email: { type: 'string' },
+                phone: { type: 'string' },
+              },
+            },
+            ticketInstances: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  ticketNumber: { type: 'string' },
+                  qrCode: { type: 'string', description: 'QR data-URL image accepted by the checker scanner' },
+                  status: { type: 'string' },
+                  attendee: {
+                    type: 'object',
+                    properties: {
+                      name: { type: 'string' },
+                      validDate: { type: 'string', format: 'date', nullable: true },
+                    },
+                  },
+                  showSession: {
+                    type: 'object',
+                    nullable: true,
+                    properties: {
+                      name: { type: 'string' },
+                      startTime: { type: 'string', format: 'date-time' },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
       },
     },
     tags: [

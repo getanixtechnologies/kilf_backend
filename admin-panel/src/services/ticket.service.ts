@@ -1,12 +1,11 @@
 import { api } from './api';
-import { ApiItemResponse, ApiListResponse, Ticket, TicketSaleStatus, TicketType } from '@/types';
+import { ApiItemResponse, ApiListResponse, Ticket, TicketSaleStatus } from '@/types';
 
 export interface TicketListParams {
   page?: number;
   limit?: number;
   festivalId?: string;
   status?: TicketSaleStatus;
-  ticketType?: TicketType;
   search?: string;
 }
 
@@ -21,15 +20,25 @@ export async function getTicket(id: string): Promise<Ticket> {
 }
 
 export interface TicketInput {
-  festivalId: string;
+  festivalId?: string;
   name: string;
   description?: string;
-  ticketType: TicketType;
   price: number;
   totalQuantity: number;
   salesStart: string;
   salesEnd: string;
   status?: TicketSaleStatus;
+  gstRate?: number;
+  requiresDate?: boolean;
+  requiresShowSession?: boolean;
+  minAge?: number | null;
+  maxAge?: number | null;
+  multiDay?: boolean;
+  perks?: string[];
+  validityDays?: number | null;
+  allowReentry?: boolean;
+  /** Letters in front of this ticket's IDs (e.g. VIP → VIP-123456); null = default format. */
+  idPrefix?: string | null;
 }
 
 export async function createTicket(input: TicketInput): Promise<Ticket> {

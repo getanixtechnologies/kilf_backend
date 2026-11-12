@@ -69,19 +69,17 @@ describe('Revenue calculations', () => {
     expect(res.body.data.netRevenue).toBe(0);
   });
 
-  it('breaks revenue down by ticket type', async () => {
+  it('breaks revenue down by ticket', async () => {
     const { token } = await createAdmin();
     const festival = await createFestival();
     const general = await createTicket(festival.id, {
       name: 'General',
-      ticketType: 'GENERAL',
       price: 500,
       totalQuantity: 10,
       availableQuantity: 10,
     });
     const vip = await createTicket(festival.id, {
       name: 'VIP',
-      ticketType: 'VIP',
       price: 2000,
       totalQuantity: 10,
       availableQuantity: 10,

@@ -42,6 +42,7 @@ export async function createFestival(data: {
   registrationEnd?: Date;
   bannerImage?: string;
   status?: FestivalStatus;
+  timezone?: string;
 }) {
   return festivalRepository.create({
     name: data.name,
@@ -54,6 +55,7 @@ export async function createFestival(data: {
     registrationEnd: data.registrationEnd,
     bannerImage: data.bannerImage || undefined,
     status: data.status ?? 'DRAFT',
+    timezone: data.timezone,
   });
 }
 
@@ -70,6 +72,7 @@ export async function updateFestival(
     registrationEnd: Date;
     bannerImage: string;
     status: FestivalStatus;
+    timezone: string;
   }>
 ) {
   await getFestival(id);

@@ -1,5 +1,7 @@
 import {
   ClipboardList,
+  History,
+  UserCheck,
   Handshake,
   LayoutDashboard,
   LineChart,
@@ -39,6 +41,8 @@ export const NAV_GROUPS: NavGroup[] = [
       { label: 'Tickets', to: '/tickets', icon: Ticket },
       { label: 'Bookings', to: '/bookings', icon: ClipboardList },
       { label: 'Check-in', to: '/check-in', icon: ScanLine },
+      { label: 'Checkers', to: '/checkers', icon: UserCheck },
+      { label: 'Verification log', to: '/verification-logs', icon: History },
     ],
   },
   {

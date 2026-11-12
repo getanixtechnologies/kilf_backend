@@ -61,7 +61,6 @@ async function getTicketBreakdown() {
     return {
       id: t.id,
       name: t.name,
-      ticketType: t.ticketType,
       festival: t.festival,
       price: toNumber(t.price),
       status: t.status,
@@ -134,7 +133,7 @@ export async function getDashboardStats() {
     revenueSince(startOfMonth()),
     revenueRepository.getDailyRevenue(14),
     revenueRepository.getMonthlyRevenue(12),
-    revenueRepository.getRevenueByTicketType(),
+    revenueRepository.getRevenueByTicket(),
     getTicketBreakdown(),
     getCheckInSummary(),
   ]);
@@ -197,9 +196,8 @@ export async function getDashboardStats() {
         revenue: round2(Number(r.grossRevenue)),
         transactions: Number(r.transactions),
       })),
-      revenueByTicketType: revenueByTicket.map((r) => ({
+      revenueByTicket: revenueByTicket.map((r) => ({
         name: r.name,
-        ticketType: r.ticketType,
         quantitySold: r.quantity,
         revenue: round2(toNumber(r.revenue)),
       })),

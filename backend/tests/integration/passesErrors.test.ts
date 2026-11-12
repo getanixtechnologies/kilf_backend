@@ -33,7 +33,6 @@ async function eliteSetup(totalSeats = 5) {
   const festival = await createFestival();
   const show = await createShowSession(festival.id, { totalSeats });
   const ticket = await createTicket(festival.id, {
-    ticketType: 'ELITE',
     price: 1500,
     requiresShowSession: true,
     multiDay: true,
@@ -77,7 +76,7 @@ describe('Booking validation errors', () => {
       startDate: new Date('2026-12-31T00:00:00Z'),
       endDate: new Date('2027-01-04T00:00:00Z'),
     });
-    const ticket = await createTicket(festival.id, { ticketType: 'YOUNG_READER', maxAge: 17 });
+    const ticket = await createTicket(festival.id, { maxAge: 17 });
     // Turns 18 on 31 Dec 2026 -> too old; turns 18 on 1 Jan 2027 -> still 17 on the start date.
     const old = await book({ ticketId: ticket.id, attendees: [{ name: 'Just Over', dateOfBirth: '2008-12-31' }] });
     expect(old.status).toBe(400);
@@ -178,7 +177,7 @@ describe('Free registration edge cases', () => {
   it('can be cancelled (inventory back) but not refunded', async () => {
     const { token } = await createAdmin();
     const festival = await createFestival();
-    const ticket = await createTicket(festival.id, { ticketType: 'NEW_YEAR_EVE', price: 0, totalQuantity: 5 });
+    const ticket = await createTicket(festival.id, { price: 0, totalQuantity: 5 });
 
     const res = await book({ ticketId: ticket.id, attendees: attendees(2) });
     const booking = await prisma.booking.findUniqueOrThrow({
@@ -200,7 +199,7 @@ describe('Free registration edge cases', () => {
 
   it('is sold out like any other ticket', async () => {
     const festival = await createFestival();
-    const ticket = await createTicket(festival.id, { ticketType: 'NEW_YEAR_EVE', price: 0, totalQuantity: 1 });
+    const ticket = await createTicket(festival.id, { price: 0, totalQuantity: 1 });
     const res = await book({ ticketId: ticket.id, attendees: attendees(2) });
     expect(res.status).toBe(409);
   });
@@ -273,18 +272,11 @@ describe('Admin ticket and show session errors', () => {
     expect((await post({ minAge: 20, maxAge: 10 })).status).toBe(400);
     expect((await post({ gstRate: 150 })).status).toBe(400);
     expect((await post({ gstRate: -1 })).status).toBe(400);
-    expect((await post({ ticketType: 'NOT_A_TYPE' })).status).toBe(400);
     expect((await post({ perks: [''] })).status).toBe(400);
 
-    const created = await post({ ticketType: 'NEW_YEAR_EVE', price: 0 });
+    const created = await post({ price: 0, gstRate: 0 });
     expect(created.status).toBe(201);
     expect(Number(created.body.data.gstRate)).toBe(0);
-
-    const update = await request(app)
-      .put(`/api/admin/tickets/${created.body.data.id}`)
-      .set(authHeader(token))
-      .send({ price: 50 });
-    expect(update.status).toBe(400);
   });
 });
 
@@ -292,7 +284,7 @@ describe('Check-in errors', () => {
   it('rejects multi-day passes scanned outside the festival and cancelled tickets', async () => {
     const { token } = await createAdmin();
     const festival = await createFestival(); // starts in 30 days
-    const ticket = await createTicket(festival.id, { ticketType: 'FULL_FESTIVAL', multiDay: true });
+    const ticket = await createTicket(festival.id, { multiDay: true });
     const res = await book({ ticketId: ticket.id, attendees: attendees(1) });
     const instance = await prisma.ticketInstance.findFirstOrThrow({
       where: { booking: { bookingNumber: res.body.data.booking.bookingNumber } },
@@ -302,7 +294,7 @@ describe('Check-in errors', () => {
 
     const early = await scan();
     expect(early.status).toBe(400);
-    expect(early.body.message).toMatch(/only valid between/);
+    expect(early.body.message).toMatch(/not valid for today/);
 
     const verify = await request(app)
       .post('/api/admin/tickets/verify')

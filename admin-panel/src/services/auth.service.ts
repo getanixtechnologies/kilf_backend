@@ -23,6 +23,8 @@ export async function getProfile(): Promise<Admin> {
   return res.data.data;
 }
 
-export async function changePassword(currentPassword: string, newPassword: string): Promise<void> {
-  await api.post('/api/admin/auth/change-password', { currentPassword, newPassword });
+/** Changing the password signs out other sessions and returns fresh tokens for this one. */
+export async function changePassword(currentPassword: string, newPassword: string): Promise<LoginResponse> {
+  const res = await api.post('/api/admin/auth/change-password', { currentPassword, newPassword });
+  return res.data.data;
 }

@@ -1,6 +1,8 @@
 import { Request, Response } from 'express';
 import { asyncHandler } from '../utils/asyncHandler';
-import { sendSuccess } from '../utils/apiResponse';
+import { buildPagination, sendSuccess } from '../utils/apiResponse';
+import { getPaginationParams } from '../utils/pagination';
+import * as guestBookingService from '../services/guestBooking.service';
 import * as guestAuthService from '../services/guestAuth.service';
 import { isProduction } from '../config/env';
 
@@ -39,6 +41,22 @@ export const logout = asyncHandler(async (req: Request, res: Response) => {
 export const me = asyncHandler(async (req: Request, res: Response) => {
   const guest = await guestAuthService.getProfile(req.guest!.id);
   return sendSuccess(res, guest, 'Profile fetched');
+});
+
+export const updateMe = asyncHandler(async (req: Request, res: Response) => {
+  const guest = await guestAuthService.updateProfile(req.guest!.id, req.body);
+  return sendSuccess(res, guest, 'Profile updated');
+});
+
+export const myBookings = asyncHandler(async (req: Request, res: Response) => {
+  const { page, limit, skip } = getPaginationParams(req);
+  const { bookings, total } = await guestBookingService.listGuestBookings(req.guest!.id, skip, limit);
+  return sendSuccess(res, bookings, 'Bookings fetched', 200, buildPagination(page, limit, total));
+});
+
+export const myBooking = asyncHandler(async (req: Request, res: Response) => {
+  const booking = await guestBookingService.getGuestBooking(req.guest!.id, req.params.bookingNumber);
+  return sendSuccess(res, booking, 'Booking fetched');
 });
 
 export const changePassword = asyncHandler(async (req: Request, res: Response) => {

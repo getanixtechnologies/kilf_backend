@@ -2,8 +2,9 @@ import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Loader2 } from 'lucide-react';
 
-// Gate staff (SCANNER role) only get the check-in screen and their own profile.
+// Checkers (SCANNER role) only get the checker dashboard and their own profile.
 const SCANNER_PATHS = ['/check-in', '/admin/profile'];
+const CHANGE_PASSWORD_PATH = '/change-password';
 
 export function ProtectedRoute() {
   const { admin, isAuthenticated, isLoading } = useAuth();
@@ -21,7 +22,16 @@ export function ProtectedRoute() {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  if (admin?.role === 'SCANNER' && !SCANNER_PATHS.some((p) => location.pathname === p)) {
+  // A temporary password must be replaced before anything else.
+  if (admin?.mustChangePassword) {
+    return location.pathname === CHANGE_PASSWORD_PATH ? <Outlet /> : <Navigate to={CHANGE_PASSWORD_PATH} replace />;
+  }
+
+  if (
+    admin?.role === 'SCANNER' &&
+    location.pathname !== CHANGE_PASSWORD_PATH &&
+    !SCANNER_PATHS.some((p) => location.pathname === p)
+  ) {
     return <Navigate to="/check-in" replace />;
   }
 

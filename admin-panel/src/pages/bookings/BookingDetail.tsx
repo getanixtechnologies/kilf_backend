@@ -257,9 +257,13 @@ export default function BookingDetailPage() {
               <InfoRow
                 label="Phone"
                 value={
-                  <a href={`tel:${booking.customer.phone}`} className="text-primary hover:underline">
-                    {booking.customer.phone}
-                  </a>
+                  booking.customer.phone ? (
+                    <a href={`tel:${booking.customer.phone}`} className="text-primary hover:underline">
+                      {booking.customer.phone}
+                    </a>
+                  ) : (
+                    '—'
+                  )
                 }
               />
             </CardContent>

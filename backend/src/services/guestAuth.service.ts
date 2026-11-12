@@ -12,6 +12,7 @@ import {
   GuestChangePasswordInput,
   GuestLoginInput,
   GuestRegisterInput,
+  GuestUpdateProfileInput,
 } from '../validators/guestAuth.validator';
 
 function hashToken(token: string): string {
@@ -22,6 +23,7 @@ export function toGuestDto(guest: {
   id: string;
   name: string;
   email: string;
+  phone?: string | null;
   isActive: boolean;
   lastLoginAt: Date | null;
   createdAt: Date;
@@ -30,6 +32,7 @@ export function toGuestDto(guest: {
     id: guest.id,
     name: guest.name,
     email: guest.email,
+    phone: guest.phone ?? null,
     isActive: guest.isActive,
     lastLoginAt: guest.lastLoginAt,
     createdAt: guest.createdAt,
@@ -121,6 +124,14 @@ export async function logout(guestId: string) {
 export async function getProfile(guestId: string) {
   const guest = await prisma.guest.findUnique({ where: { id: guestId } });
   if (!guest) throw ApiError.notFound('Account not found');
+  return toGuestDto(guest);
+}
+
+/** Name and phone only; email is not editable. */
+export async function updateProfile(guestId: string, input: GuestUpdateProfileInput) {
+  const data: { name: string; phone?: string | null } = { name: input.name };
+  if (input.phone !== undefined) data.phone = input.phone || null;
+  const guest = await prisma.guest.update({ where: { id: guestId }, data });
   return toGuestDto(guest);
 }
 

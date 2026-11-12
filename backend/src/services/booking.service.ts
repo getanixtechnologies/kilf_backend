@@ -23,8 +23,8 @@ export interface AttendeeInput {
 export interface CreateBookingInput {
   ticketId: string;
   quantity?: number;
-  customer: { name: string; email: string; phone: string };
-  attendees: AttendeeInput[];
+  customer: { name: string; email: string; phone?: string };
+  attendees?: AttendeeInput[];
 }
 
 // Tickets are priced in rupees only; bookings and payments carry the currency for the gateway.
@@ -35,6 +35,28 @@ const MAX_BOOKING_NUMBER_RETRIES = 5;
 /** GST is charged on top of the ticket price and rounded to paise. */
 function gstOn(subtotal: Prisma.Decimal, ratePercent: Prisma.Decimal) {
   return subtotal.mul(ratePercent).div(100).toDecimalPlaces(2);
+}
+
+/** Price breakdown for `quantity` of a ticket, GST added on top (same maths as booking creation). */
+export async function quoteBooking(ticketId: string, quantity: number) {
+  const ticket = await prisma.ticket.findUnique({ where: { id: ticketId } });
+  if (!ticket) throw ApiError.notFound('Ticket not found');
+
+  const subtotal = ticket.price.mul(quantity);
+  const gstAmount = gstOn(subtotal, ticket.gstRate);
+  return {
+    ticketId: ticket.id,
+    ticketName: ticket.name,
+    quantity,
+    unitPrice: ticket.price,
+    gstRate: ticket.gstRate,
+    subtotalAmount: subtotal,
+    gstAmount,
+    totalAmount: subtotal.add(gstAmount),
+    currency: DEFAULT_CURRENCY,
+    availableQuantity: ticket.availableQuantity,
+    isAvailable: ticket.status === 'ACTIVE' && ticket.availableQuantity >= quantity,
+  };
 }
 
 /**
@@ -129,7 +151,18 @@ async function reserveShowSeats(
  * go negative. The subsequent conditional `updateMany` (WHERE availableQuantity
  * >= quantity) is a defense-in-depth atomic guard against overselling.
  */
-async function reserveInventoryAndCreateBooking(input: CreateBookingInput) {
+async function reserveInventoryAndCreateBooking(rawInput: CreateBookingInput, guestId: string | null) {
+  // No attendee list: every ticket is issued in the customer's name.
+  const input = {
+    ...rawInput,
+    attendees:
+      rawInput.attendees ??
+      Array.from({ length: rawInput.quantity ?? 1 }, () => ({
+        name: rawInput.customer.name,
+        email: rawInput.customer.email,
+        phone: rawInput.customer.phone,
+      })),
+  };
   const quantity = input.attendees.length;
 
   return prisma.$transaction(async (tx) => {
@@ -170,11 +203,12 @@ async function reserveInventoryAndCreateBooking(input: CreateBookingInput) {
 
     const customer = await tx.customer.upsert({
       where: { email: input.customer.email.toLowerCase() },
-      update: { name: input.customer.name, phone: input.customer.phone },
+      // Keep a previously saved phone when this booking did not include one.
+      update: { name: input.customer.name, ...(input.customer.phone ? { phone: input.customer.phone } : {}) },
       create: {
         name: input.customer.name,
         email: input.customer.email.toLowerCase(),
-        phone: input.customer.phone,
+        phone: input.customer.phone ?? null,
       },
     });
 
@@ -190,13 +224,14 @@ async function reserveInventoryAndCreateBooking(input: CreateBookingInput) {
     let attempt = 0;
     for (;;) {
       attempt += 1;
-      const bookingNumber = generateBookingNumber();
+      const bookingNumber = generateBookingNumber(ticket.idPrefix);
       try {
         booking = await tx.booking.create({
           data: {
             bookingNumber,
             festivalId: ticket.festivalId,
             customerId: customer.id,
+            guestId,
             status: isFree ? 'CONFIRMED' : 'PENDING_PAYMENT',
             quantity,
             subtotalAmount: subtotal,
@@ -264,6 +299,19 @@ async function releaseInventory(
   await releaseShowSeats(tx, bookingId);
 }
 
+/**
+ * A ticket number not yet in use. Checked before insert because a unique
+ * violation would abort the surrounding transaction.
+ */
+async function uniqueTicketNumber(tx: Prisma.TransactionClient, idPrefix: string | null) {
+  for (let i = 0; i < 10; i++) {
+    const ticketNumber = generateTicketNumber(idPrefix);
+    const taken = await tx.ticketInstance.findUnique({ where: { ticketNumber }, select: { id: true } });
+    if (!taken) return ticketNumber;
+  }
+  throw ApiError.conflict('Could not allocate a ticket number, please retry');
+}
+
 /** Issues one QR ticket per attendee (falling back to one per unit for bookings that predate attendees). */
 async function issueTicketInstances(
   tx: Prisma.TransactionClient,
@@ -275,11 +323,12 @@ async function issueTicketInstances(
       where: { bookingItemId: item.id },
       orderBy: { createdAt: 'asc' },
     });
+    const { idPrefix } = await tx.ticket.findUniqueOrThrow({ where: { id: item.ticketId }, select: { idPrefix: true } });
     const attendeeIds: (string | null)[] =
       attendees.length > 0 ? attendees.map((a) => a.id) : Array.from({ length: item.quantity }, () => null);
 
     for (const attendeeId of attendeeIds) {
-      const ticketNumber = generateTicketNumber();
+      const ticketNumber = await uniqueTicketNumber(tx, idPrefix);
       const qrCode = await generateQrCodeDataUrl(ticketNumber);
       await tx.ticketInstance.create({
         data: {
@@ -308,8 +357,9 @@ const PROVIDER_NAME_TO_ENUM: Record<string, Prisma.PaymentUncheckedCreateInput['
   stripe: 'STRIPE',
 };
 
-export async function createBooking(input: CreateBookingInput) {
-  const booking = await reserveInventoryAndCreateBooking(input);
+/** `guestId` must come from a verified guest JWT, never from the request body. */
+export async function createBooking(input: CreateBookingInput, guestId: string | null = null) {
+  const booking = await reserveInventoryAndCreateBooking(input, guestId);
 
   if (booking.status === 'CONFIRMED') {
     // Free registration: already confirmed with tickets issued, no payment to create.

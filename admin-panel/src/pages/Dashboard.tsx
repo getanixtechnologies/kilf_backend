@@ -240,7 +240,7 @@ export default function DashboardPage() {
             <CardTitle>Revenue by ticket</CardTitle>
           </CardHeader>
           <CardContent>
-            {data.charts.revenueByTicketType.length === 0 ? (
+            {data.charts.revenueByTicket.length === 0 ? (
               <p className="text-sm text-muted-foreground">No sales yet.</p>
             ) : (
               <>
@@ -248,14 +248,14 @@ export default function DashboardPage() {
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie
-                        data={data.charts.revenueByTicketType}
+                        data={data.charts.revenueByTicket}
                         dataKey="revenue"
                         nameKey="name"
                         innerRadius={45}
                         outerRadius={70}
                         paddingAngle={2}
                       >
-                        {data.charts.revenueByTicketType.map((_, index) => (
+                        {data.charts.revenueByTicket.map((_, index) => (
                           <Cell key={index} fill={CHART_COLORS[index % CHART_COLORS.length]} />
                         ))}
                       </Pie>
@@ -264,7 +264,7 @@ export default function DashboardPage() {
                   </ResponsiveContainer>
                 </div>
                 <ul className="mt-3 space-y-2 text-sm">
-                  {data.charts.revenueByTicketType.map((row, index) => (
+                  {data.charts.revenueByTicket.map((row, index) => (
                     <li key={row.name} className="flex items-center gap-2">
                       <span
                         className="h-2.5 w-2.5 shrink-0 rounded-full"

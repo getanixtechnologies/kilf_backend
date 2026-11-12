@@ -42,11 +42,10 @@ export async function getMonthlyRevenue(months = 12) {
 }
 
 export async function getRevenueByTicket() {
-  const rows = await revenueRepository.getRevenueByTicketType();
+  const rows = await revenueRepository.getRevenueByTicket();
   return rows.map((r) => ({
     ticketId: r.ticketId,
     name: r.name,
-    ticketType: r.ticketType,
     quantitySold: r.quantity,
     revenue: round2(toNumber(r.revenue)),
   }));

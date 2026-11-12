@@ -8,6 +8,8 @@ export interface Admin {
   isActive: boolean;
   lastLoginAt: string | null;
   createdAt: string;
+  /** Signed in with a temporary password that must be replaced first. */
+  mustChangePassword?: boolean;
 }
 
 export type FestivalStatus = 'DRAFT' | 'PUBLISHED' | 'CANCELLED' | 'COMPLETED';
@@ -29,7 +31,6 @@ export interface Festival {
   _count?: { tickets: number; bookings: number; sponsors: number };
 }
 
-export type TicketType = 'GENERAL' | 'VIP' | 'STUDENT' | 'EARLY_BIRD' | 'DAY_PASS' | 'FULL_FESTIVAL';
 export type TicketSaleStatus = 'ACTIVE' | 'INACTIVE';
 
 export interface Ticket {
@@ -38,13 +39,22 @@ export interface Ticket {
   festival?: { id: string; name: string };
   name: string;
   description: string | null;
-  ticketType: TicketType;
   price: string | number;
   totalQuantity: number;
   availableQuantity: number;
   salesStart: string;
   salesEnd: string;
   status: TicketSaleStatus;
+  gstRate?: string | number;
+  requiresDate?: boolean;
+  requiresShowSession?: boolean;
+  minAge?: number | null;
+  maxAge?: number | null;
+  multiDay?: boolean;
+  perks?: string[];
+  validityDays?: number | null;
+  allowReentry?: boolean;
+  idPrefix?: string | null;
   createdAt: string;
   updatedAt: string;
   ticketsSold?: number;
@@ -59,7 +69,7 @@ export interface Customer {
   id: string;
   name: string;
   email: string;
-  phone: string;
+  phone: string | null;
 }
 
 export interface Payment {
@@ -83,7 +93,7 @@ export interface Payment {
 export interface BookingItem {
   id: string;
   ticketId: string;
-  ticket: { id: string; name: string; ticketType: TicketType };
+  ticket: { id: string; name: string };
   quantity: number;
   unitPrice: string | number;
   subtotal: string | number;
@@ -160,7 +170,6 @@ export interface ApiItemResponse<T> {
 export interface TicketBreakdown {
   id: string;
   name: string;
-  ticketType: TicketType;
   festival: { id: string; name: string };
   price: number;
   status: TicketSaleStatus;
@@ -211,7 +220,7 @@ export interface DashboardStats {
   charts: {
     revenueByDay: { date: string; revenue: number; transactions: number }[];
     revenueByMonth: { month: string; revenue: number; transactions: number }[];
-    revenueByTicketType: { name: string; ticketType: string; quantitySold: number; revenue: number }[];
+    revenueByTicket: { name: string; quantitySold: number; revenue: number }[];
   };
 }
 
